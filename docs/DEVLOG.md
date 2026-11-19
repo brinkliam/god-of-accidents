@@ -78,6 +78,14 @@
 
 That is a low-end 2019 laptop chip. A shorter 20 s run gave 179 fps average, so expect thermal and power variance on laptops.
 
+**Hosting.** Code is public at https://github.com/brinkliam/god-of-accidents. The Web build is live at https://god-of-accidents.vercel.app:
+- it's built with Brotli (35 MB down to 9.5 MB) and committed to `web/`;
+- Vercel serves `web/` with no build step and redeploys on every push to `main`;
+- `web/vercel.json` sends `Content-Encoding: br`, and the loader's decompression fallback covers hosts that don't;
+- checked live: the right headers, Unity starts on WebGL 2, and the consent screen shows over the valley.
+
+To update the site, run `BuildWeb`, copy `Builds/Web` into `web/`, then commit and push.
+
 **Known limitations / next.**
 
 - The turning-point banner fix (frame-driven fade) has not yet been confirmed in a screenshot. The Editor session closed before the capture.
