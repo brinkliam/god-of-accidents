@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "goa-web",
+      "runtimeExecutable": "C:\\Users\\brink\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+      "runtimeArgs": ["-m", "http.server", "5180", "--directory", "C:\\Users\\brink\\Documents\\Games\\god-of-accidents\\Builds\\Web"],
+      "port": 5180
+    }
+  ]
+}

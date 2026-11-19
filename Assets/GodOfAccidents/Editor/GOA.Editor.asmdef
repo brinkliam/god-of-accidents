@@ -1,0 +1,21 @@
+{
+    "name": "GOA.Editor",
+    "rootNamespace": "GOA.EditorTools",
+    "references": [
+        "GOA.Game",
+        "GOA.Simulation",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
