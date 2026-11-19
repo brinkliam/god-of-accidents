@@ -84,8 +84,10 @@ namespace GOA.EditorTools
             // building WebGL while Windows was active stripped every post-processing variant (black screen).
             EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.WebGL, BuildTarget.WebGL);
             Run();
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-            PlayerSettings.WebGL.decompressionFallback = false;
+            // Brotli for hosting (web/vercel.json sends Content-Encoding: br). The fallback lets the loader decompress in
+            // JavaScript if a host or proxy ever drops that header, so the game still starts, just a little slower.
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+            PlayerSettings.WebGL.decompressionFallback = true;
             // Keep the Emscripten link inside this machine's memory: smaller IL2CPP output and a cheaper optimiser pass.
             PlayerSettings.SetManagedStrippingLevel(UnityEditor.Build.NamedBuildTarget.WebGL, ManagedStrippingLevel.Medium);
             PlayerSettings.stripEngineCode = true;
