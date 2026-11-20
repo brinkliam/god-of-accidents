@@ -18,6 +18,8 @@ namespace GOA.Game
         public CameraRig Rig;
         public WorldView View;
         public Func<Vector2, bool> IsOverUI = _ => false;
+        public Func<bool> PressBeganOnUI = () => false;
+        float _blockUntil;
         public bool Captured { get; private set; }
         public event Action<PickResult> OnSelect;
         public event Action<string> OnHint;
@@ -68,12 +70,50 @@ namespace GOA.Game
 
         public static string HintFor(PowerType p) => p switch
         {
-            PowerType.Nudge => "Drag a pebble or dropped trinket a few paces - or tap the tavern lantern or the hay cart's wheel chock.",
+            PowerType.Nudge => "Tap a pebble or trinket to roll it into someone's path (drag to aim it yourself) - or tap the tavern lantern or the hay cart's wheel chock.",
             PowerType.Gust => "Press where the wind should start, then drag the direction it blows.",
             PowerType.Distract => "Tap a villager who is outdoors. A glimmer will stop them in their tracks.",
             PowerType.Drop => "Tap a spot. The crow will fly from the old oak and drop whatever it carries.",
             _ => ""
         };
+
+        /// <summary>Touch targets in screen pixels, grown on large or high-density screens (about 44pt minimum).</summary>
+        static float Px(float r) => r * Mathf.Max(1f, Mathf.Min(Screen.width, Screen.height) / 640f);
+
+        Texture2D[] _cursors;
+        PowerType? _cursorFor = (PowerType)(-1);
+
+        static Texture2D MakeCursor(Color c)
+        {
+            const int S = 32;
+            var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            var px = new Color32[S * S];
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    float d = Mathf.Sqrt((x - 15.5f) * (x - 15.5f) + (y - 15.5f) * (y - 15.5f));
+                    float ring = Mathf.Clamp01(1.5f - Mathf.Abs(d - 11.5f));
+                    float halo = Mathf.Clamp01(1.5f - Mathf.Abs(d - 13.5f)) * 0.6f;
+                    float dot = Mathf.Clamp01(3f - d);
+                    float a = Mathf.Max(ring, dot);
+                    var col = Color.Lerp(new Color(0, 0, 0, halo), new Color(c.r, c.g, c.b, 1), a);
+                    px[y * S + x] = col;
+                }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return tex;
+        }
+
+        void UpdateCursor()
+        {
+            var want = Session != null && Session.AcceptsInput ? Active : null;
+            if (want == _cursorFor) return;
+            _cursorFor = want;
+            if (_cursors == null)
+                _cursors = new[] { MakeCursor(new Color(1f, 0.85f, 0.4f)), MakeCursor(new Color(0.6f, 0.9f, 1f)), MakeCursor(new Color(0.85f, 0.6f, 1f)), MakeCursor(new Color(0.75f, 0.75f, 0.8f)) };
+            if (want.HasValue && (int)want.Value < _cursors.Length) Cursor.SetCursor(_cursors[(int)want.Value], new Vector2(16, 16), CursorMode.Auto);
+            else Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
+        }
 
         void Cancel()
         {
@@ -108,7 +148,9 @@ namespace GOA.Game
 
         void Update()
         {
-            if (Session == null || Session.Timeline == null || !Session.AcceptsInput) { Cancel(); _hover.gameObject.SetActive(false); return; }
+            if (View) View.Armed = Session != null && Session.AcceptsInput ? Active : null;
+            UpdateCursor();
+            if (Session == null || Session.Timeline == null || !Session.AcceptsInput) { Cancel(); _hover.gameObject.SetActive(false); _blockUntil = Time.unscaledTime + 0.25f; return; }
             var kb = Keyboard.current;
             if (kb != null)
             {
@@ -125,13 +167,14 @@ namespace GOA.Game
 
             if (down)
             {
-                if (IsOverUI(pos)) return;
+                // a press on a button (or in the instant a dialog closes) never reaches the world behind it
+                if (IsOverUI(pos) || PressBeganOnUI() || Time.unscaledTime < _blockUntil) return;
                 _pressed = true;
                 _downScreen = pos;
                 TerrainBuilder.Raycast(cam.ScreenPointToRay(pos), out _downWorld);
                 if (Active == PowerType.Nudge)
                 {
-                    var pick = View.Pick(cam, pos, t, true, 46);
+                    var pick = View.Pick(cam, pos, t, true, Px(64));
                     if (pick.kind == PickKind.Prop)
                     {
                         var p = View.World.GetProp(pick.id);
@@ -159,7 +202,7 @@ namespace GOA.Game
         void UpdateHover(Camera cam, Vector2 pos, double t)
         {
             if (IsOverUI(pos) || _pressed) { _hover.gameObject.SetActive(false); return; }
-            var pick = View.Pick(cam, pos, t, Active == PowerType.Nudge, 40);
+            var pick = View.Pick(cam, pos, t, Active == PowerType.Nudge, Px(56));
             bool valid = pick.kind == PickKind.Citizen && (Active == null || Active == PowerType.Distract)
                       || pick.kind == PickKind.Prop && (Active == null || Active == PowerType.Nudge)
                       || pick.kind == PickKind.Building && Active == null;
@@ -218,7 +261,7 @@ namespace GOA.Game
             if (Active == null)
             {
                 if (!tap) return;
-                var pick = View.Pick(cam, pos, t, false, 34);
+                var pick = View.Pick(cam, pos, t, false, Px(44));
                 OnSelect?.Invoke(pick);
                 return;
             }
@@ -229,13 +272,21 @@ namespace GOA.Game
                     if (_dragProp >= 0)
                     {
                         var p = w.GetProp(_dragProp);
-                        if (p == null || !TerrainBuilder.Raycast(cam.ScreenPointToRay(pos), out var hit)) return;
-                        if (tap) { OnHint?.Invoke("Drag it to where it should roll."); return; }
+                        if (p == null) return;
+                        if (tap)
+                        {
+                            // one tap is enough: roll it onto the path of whoever is coming (or the nearest road)
+                            var s = w.SuggestNudgeTarget(p.id);
+                            var at = TerrainBuilder.Ground(s.x, s.z);
+                            Session.Act(PlayerInput.Nudge(p.id, s), at);
+                            return;
+                        }
+                        if (!TerrainBuilder.Raycast(cam.ScreenPointToRay(pos), out var hit)) return;
                         var to = ClampNudge(p, hit);
                         Session.Act(PlayerInput.Nudge(p.id, new Vec2(to.x, to.z)), to);
                         return;
                     }
-                    var pick = View.Pick(cam, pos, t, true, 46);
+                    var pick = View.Pick(cam, pos, t, true, Px(64));
                     if (pick.kind == PickKind.Prop)
                     {
                         var p = w.GetProp(pick.id);
@@ -255,7 +306,7 @@ namespace GOA.Game
                 }
                 case PowerType.Distract:
                 {
-                    var pick = View.Pick(cam, pos, t, false, 40);
+                    var pick = View.Pick(cam, pos, t, false, Px(60));
                     if (pick.kind != PickKind.Citizen) { OnHint?.Invoke("Tap a villager who is outdoors."); return; }
                     Session.Act(PlayerInput.DistractCitizen(pick.id), pick.point);
                     return;

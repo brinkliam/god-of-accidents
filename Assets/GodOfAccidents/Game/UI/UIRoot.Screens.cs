@@ -17,7 +17,7 @@ namespace GOA.Game
             screen.Add(L("GOD OF ACCIDENTS", "title-xl"));
             screen.Add(L("THE SMALLEST ACCIDENT CAN CHANGE THE FATE OF A CIVILISATION", "title-sub"));
             var col = new VisualElement(); col.AddToClassList("menu-col");
-            var cont = Btn("CONTINUE", () => { if (S.Load()) Audio?.Ui("begin"); }, "btn-menu", "btn-primary");
+            var cont = Btn("CONTINUE", () => Veil("Remembering your world...", () => { if (S.Load()) Audio?.Ui("begin"); }), "btn-menu", "btn-primary");
             cont.name = "continue";
             col.Add(cont);
             col.Add(Btn("NEW WORLD", ShowNewWorld, "btn-menu"));
@@ -38,10 +38,12 @@ namespace GOA.Game
             var m = Panel("modal");
             m.style.width = width;
             var head = Row(L(title, "h1"), Spacer(), IconBtn("close", () => { CloseModal(dim); onClose?.Invoke(); }, "Close", 14, "btn-ghost"));
+            head.AddToClassList("modal-head");
             m.Add(head);
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             body = new VisualElement();
             scroll.Add(body);
+            scroll.AddToClassList("modal-scroll");
             m.Add(scroll);
             dim.Add(m);
             _modal.Add(dim);
@@ -76,7 +78,7 @@ namespace GOA.Game
                 S.NewGame(ScenarioDef.Sandbox, s);
                 Audio?.Ui("begin");
             }, "btn-primary"));
-            if (S.BonusUnlocked || PlayerPrefs.GetInt("goa_bonus_until_session", 0) == 1)
+            if (S.BonusUnlocked) // unlocked for this session only, by design
                 b.Add(Btn("Play the Bonus World", () => { CloseAllModals(); S.NewGame(ScenarioDef.BonusFestival, 0); }, "btn-ghost"));
             else
                 b.Add(Btn("Unlock a Bonus World (ad)", () => Rewarded(Placements.BonusWorld, () => { S.BonusUnlocked = true; CloseModal(dim); ShowNewWorld(); Toast("Bonus World unlocked for this session."); }), "btn-ad"));
@@ -216,8 +218,8 @@ namespace GOA.Game
             {
                 bool found = Codex.IsFound(e.id);
                 var card = new VisualElement(); card.AddToClassList("card");
-                card.Add(L(found ? e.title : "? ? ?", found ? "h2" : "muted"));
-                card.Add(L(found ? e.blurb : "Not yet discovered.", "tiny"));
+                card.Add(L(found ? e.title : "Undiscovered", found ? "h2" : "codex-locked"));
+                card.Add(L(found ? e.blurb : "Hint: " + e.hint, found ? "tiny" : "codex-hint"));
                 b.Add(card);
             }
         }
@@ -262,7 +264,7 @@ namespace GOA.Game
             else
             {
                 if (S.Timeline.World.InterventionCount > 0)
-                    row.Add(Btn("Second Chance (ad)", () => Rewarded(Placements.SecondChance, () => { CloseModal(dim); S.SecondChance(); }), "btn-ad"));
+                    row.Add(Btn("Second Chance (ad)", () => Rewarded(Placements.SecondChance, () => { CloseModal(dim); Veil("Folding time back...", S.SecondChance); }), "btn-ad"));
                 row.Add(Btn("Try again", () => { CloseModal(dim); S.Retry(); }, "btn-primary"));
             }
             row.Add(Btn("Open the timeline", () => { CloseModal(dim); S.ContinueAfterResults(); S.SetSpeed(0); OpenTimeline(); }, "btn-ghost"));
@@ -295,6 +297,7 @@ namespace GOA.Game
         {
             if (S.World == null || S.Mode == SessionMode.Menu) return;
             _timelineOpen = true;
+            Show(_hud, false); // nothing of the HUD shows through the Web of History
             S.SetModal(true);
             _overlay.Clear();
             var scr = new VisualElement(); scr.AddToClassList("timeline-screen");
@@ -325,6 +328,7 @@ namespace GOA.Game
         void CloseTimeline()
         {
             _timelineOpen = false;
+            Show(_hud, true);
             _overlay.Clear();
             S.SetModal(false);
         }
@@ -346,8 +350,8 @@ namespace GOA.Game
                 row.RegisterCallback<ClickEvent>(_ => { _graph.Select(cc.id); TimelineSelect(cc); });
                 _timelineSide.Add(row);
             }
-            _timelineSide.Add(Btn("Replay this moment", () => { CloseTimeline(); S.EnterReplay(e); }, "btn-primary"));
-            _timelineSide.Add(Btn("Branch: what if...", () => { CloseTimeline(); S.Branch(Math.Max(World.StartTime, e.time - SimTime.Hour)); }, S.CanBranch ? "btn-ghost" : "btn-disabled"));
+            _timelineSide.Add(Btn("Replay this moment", () => { CloseTimeline(); Veil("Rewinding time...", () => S.EnterReplay(e)); }, "btn-primary"));
+            _timelineSide.Add(Btn("Branch: what if...", () => { CloseTimeline(); Veil("Splitting the timeline...", () => S.Branch(Math.Max(World.StartTime, e.time - SimTime.Hour))); }, S.CanBranch ? "btn-ghost" : "btn-disabled"));
             _timelineSide.Add(Btn("Show in the world", () => { CloseTimeline(); ShowEvent(e); if (e.hasPos) Rig.FocusOn(TerrainBuilder.Ground(e.pos), 30, 1.4f); }, "btn-ghost"));
         }
 
@@ -439,13 +443,14 @@ namespace GOA.Game
             string[] steps =
             {
                 "You are an invisible god. You cannot command anyone - but you can arrange tiny accidents.",
-                "Choose a power at the bottom (or press 1-4). Nudge moves pebbles and trinkets; Gust bends the wind; Distract stops a villager with a glimmer; Drop sends the crow.",
+                "Watch for flashing rings: they mark a moment where a tiny push would cause something juicy. Gold means Nudge, violet means Distract.",
+                "Choose a power at the bottom (or press 1-4), then tap a glowing target. Nudge rolls a pebble into someone's path; Gust bends the wind; Distract stops a villager with a glimmer; Drop sends the crow.",
                 "Tap any villager to see their life, traits and memories. Tap the travelling merchant to see what he carries.",
-                "Speed time up with the controls at the top right. Every consequence is recorded - press T to see the web of history.",
+                "Speed time up with the controls at the top right. The goals on the left are optional - every consequence is recorded, and T opens the web of history.",
             };
             if (_tutorialStep >= steps.Length) { GameSettings.TutorialDone = true; return; }
             var p = Panel();
-            p.style.position = Position.Absolute; p.style.bottom = 130; p.style.left = new Length(28, LengthUnit.Percent); p.style.right = new Length(28, LengthUnit.Percent);
+            p.AddToClassList("tutorial");
             p.Add(L(steps[_tutorialStep], "small"));
             p.Add(Row(Spacer(), Btn(_tutorialStep == steps.Length - 1 ? "Begin" : "Next", () =>
             {

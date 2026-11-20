@@ -19,6 +19,11 @@ namespace GOA.Game
         Volume _volume;
         Transform _weatherAnchor;
         DepthOfField _dof;
+        ColorAdjustments _ca;
+        WhiteBalance _wb;
+        Vignette _vig;
+        Vector4 _grade = new Vector4(6, 22, 16, -0.1f); // temperature, saturation, contrast, exposure
+        Color _filter = Color.white;
 
         void Awake()
         {
@@ -88,6 +93,9 @@ namespace GOA.Game
             Rig.IsOverUI = UI.IsOverUI;
             Rig.GestureCaptured = () => pc.Captured;
             pc.IsOverUI = UI.IsOverUI;
+            pc.PressBeganOnUI = () => UI.PressBeganOnUI;
+            Rig.IsOverUI = p => UI.IsOverUI(p) || UI.PressBeganOnUI;
+            Rig.CameraFloor = View.CameraFloor;
             ApplyQuality();
         }
 
@@ -102,11 +110,11 @@ namespace GOA.Game
             bloom.threshold.Override(1.05f); bloom.intensity.Override(0.4f); bloom.scatter.Override(0.6f);
             var tone = profile.Add<Tonemapping>(true);
             tone.mode.Override(TonemappingMode.ACES);
-            var ca = profile.Add<ColorAdjustments>(true);
+            var ca = _ca = profile.Add<ColorAdjustments>(true);
             ca.postExposure.Override(-0.1f); ca.saturation.Override(22f); ca.contrast.Override(16f);
-            var wb = profile.Add<WhiteBalance>(true);
+            var wb = _wb = profile.Add<WhiteBalance>(true);
             wb.temperature.Override(6f);
-            var vig = profile.Add<Vignette>(true);
+            var vig = _vig = profile.Add<Vignette>(true);
             vig.intensity.Override(0.24f); vig.smoothness.Override(0.5f);
             _dof = profile.Add<DepthOfField>(true);
             _dof.mode.Override(DepthOfFieldMode.Bokeh);
@@ -118,12 +126,45 @@ namespace GOA.Game
         {
             if (Rig == null) return;
             if (_weatherAnchor) _weatherAnchor.position = Rig.Target;
+            Grade();
             if (_dof == null) return;
             // a tilt-shift miniature effect: focus on the camera's target, more pronounced when zoomed out
             float d = Vector3.Distance(Rig.Cam.transform.position, Rig.Target);
             _dof.focusDistance.value = d;
             _dof.focalLength.value = Mathf.Lerp(70, 230, Mathf.InverseLerp(15, 300, d));
             _dof.aperture.value = Mathf.Lerp(8f, 4.5f, Mathf.InverseLerp(15, 300, d));
+        }
+
+        /// <summary>Colour grading that follows the season and the hour: warm golden hours, cool blue nights, rich autumns, crisp winters.</summary>
+        void Grade()
+        {
+            if (_ca == null || _wb == null || Session == null || View == null || View.Atmosphere == null) return;
+            long t = (long)Session.DisplayTime;
+            var season = GOA.Sim.SimTime.SeasonOf(t);
+            float night = View.Atmosphere.Night;
+            float sun = View.Atmosphere.SunElevation;               // degrees above the horizon
+            float golden = (1 - night) * Mathf.Clamp01(1 - Mathf.Abs(sun - 8f) / 14f);
+            // season baselines: temperature, saturation, contrast, exposure, colour filter
+            Vector4 g; Color f;
+            switch (season)
+            {
+                case GOA.Sim.Season.Spring: g = new Vector4(3, 24, 19, -0.16f); f = new Color(0.98f, 1.02f, 0.97f); break;
+                case GOA.Sim.Season.Summer: g = new Vector4(9, 28, 21, -0.18f); f = new Color(1.02f, 1.0f, 0.95f); break;
+                case GOA.Sim.Season.Autumn: g = new Vector4(15, 32, 22, -0.15f); f = new Color(1.05f, 0.96f, 0.86f); break;
+                default: g = new Vector4(-9, 8, 17, -0.08f); f = new Color(0.93f, 0.98f, 1.06f); break;
+            }
+            g += new Vector4(20, 14, 4, 0.05f) * golden;             // golden hour glows
+            g += new Vector4(-26, -18, 6, -0.25f) * night;           // moonlit blue
+            f = Color.Lerp(f, new Color(0.82f, 0.9f, 1.12f), night * 0.6f);
+            float k = 1 - Mathf.Exp(-Time.unscaledDeltaTime * 1.5f);
+            _grade = Vector4.Lerp(_grade, g, k);
+            _filter = Color.Lerp(_filter, f, k);
+            _wb.temperature.value = _grade.x;
+            _ca.saturation.value = _grade.y;
+            _ca.contrast.value = _grade.z;
+            _ca.postExposure.value = _grade.w;
+            _ca.colorFilter.Override(_filter);
+            if (_vig != null) _vig.intensity.value = 0.22f + night * 0.12f;
         }
 
         public static void ApplyQuality()
@@ -140,6 +181,13 @@ namespace GOA.Game
             var b = Instance;
             if (b == null) return;
             if (b._dof != null) b._dof.active = q == 2;
+            // anti-aliasing follows quality: none on Low, SMAA on Medium, MSAA x4 on High
+            if (b.Rig != null && b.Rig.Cam != null)
+            {
+                var cd = b.Rig.Cam.GetUniversalAdditionalCameraData();
+                cd.antialiasing = q == 1 ? AntialiasingMode.SubpixelMorphologicalAntiAliasing : AntialiasingMode.None;
+                cd.antialiasingQuality = AntialiasingQuality.Medium;
+            }
             if (b.View != null) b.View.SetQuality(GameSettings.QualityScale);
         }
 

@@ -29,7 +29,7 @@ namespace GOA.Game
         readonly List<Transform> _sheep = new List<Transform>();
         readonly List<Transform> _flock = new List<Transform>();
         ParticleSystem _gustFx;
-        ParticleSystem _dust, _sparkles;
+        ParticleSystem _dust, _sparkles, _splash;
         ParticleSystem _waterfallMist;
         Mesh[] _cropStage;
         readonly List<Matrix4x4[]> _cropBatches = new List<Matrix4x4[]>();
@@ -44,6 +44,37 @@ namespace GOA.Game
         public readonly List<Opportunity> Opportunities = new List<Opportunity>();
         readonly List<(Transform t, Material m)> _oppMarkers = new List<(Transform, Material)>();
         float _oppTimer;
+        // armed power: valid targets glow, invalid ones are dimmed
+        public PowerType? Armed;
+        readonly List<(Transform t, Material m)> _targetRings = new List<(Transform, Material)>();
+
+        static float RoofHeight(Building b) => b.type switch
+        {
+            BuildingType.Chapel => 15f, BuildingType.ClockTower => 21f, BuildingType.Windmill => 17f, BuildingType.Mill => 11f,
+            BuildingType.ElderHall => 10f, BuildingType.Library => 10f, BuildingType.Well => 3.5f, BuildingType.Haystack => 4.5f,
+            BuildingType.Wall => 4f, BuildingType.House => 6.5f + b.tier * 1.6f, _ => 8f,
+        };
+
+        /// <summary>Lowest camera height over this point: clear of every roof, with a little headroom.</summary>
+        public float CameraFloor(Vector3 p)
+        {
+            float floor = float.MinValue;
+            if (World == null) return floor;
+            var hp = new Vec2(p.x, p.z);
+            foreach (var b in World.Buildings)
+            {
+                if (b.destroyed && b.buildProgress <= 0) continue;
+                var local = hp - b.pos;
+                float cs = Mathf.Cos(-b.rotation), sn = Mathf.Sin(-b.rotation);
+                float lx = Mathf.Abs(local.x * cs - local.z * sn) - b.size.x * 0.5f, lz = Mathf.Abs(local.x * sn + local.z * cs) - b.size.z * 0.5f;
+                float outside = Mathf.Max(lx, lz);
+                if (outside > 3f) continue;
+                // full clearance over the roof, tapering to nothing three metres beyond the walls
+                float h = TerrainBuilder.Height(b.pos.x, b.pos.z) + RoofHeight(b) * (b.Complete ? 1 : Mathf.Max(0.3f, b.buildProgress)) + 1.6f;
+                floor = Mathf.Max(floor, Mathf.Lerp(h, h - 6f, Mathf.Clamp01(outside / 3f)));
+            }
+            return floor;
+        }
 
         public void Init(World w, float quality)
         {
@@ -59,6 +90,11 @@ namespace GOA.Game
             BuildAnimals();
             _waterfallMist = Fx.Make(_static, "WaterfallMist", Fx.MistCfg, TerrainBuilder.Ground(VillageLayout.RiverX(TerrainBuilder.WaterfallZ - 4), TerrainBuilder.WaterfallZ - 4) + Vector3.up);
             _dust = Fx.Make(transform, "Dust", Fx.DustCfg); Fx.SetRate(_dust, 0);
+            var stepCfg = Fx.DustCfg; stepCfg.size0 = 0.25f; stepCfg.size1 = 0.5f; stepCfg.life0 = 0.5f; stepCfg.life1 = 0.9f; stepCfg.speed0 = 0.2f; stepCfg.speed1 = 0.6f; stepCfg.radius = 0.15f; stepCfg.max = 200;
+            var steps = Fx.Make(transform, "Footsteps", stepCfg); Fx.SetRate(steps, 0);
+            CitizenView.StepDust = quality >= 0.7f ? steps : null;
+            var spc = Fx.SparkCfg; spc.c0 = new Color(0.75f, 0.9f, 1f, 0.9f); spc.c1 = new Color(0.9f, 0.97f, 1f, 0.8f); spc.additive = false; spc.gravity = 1.4f; spc.speed0 = 3; spc.speed1 = 6; spc.size0 = 0.08f; spc.size1 = 0.18f; spc.life0 = 0.5f; spc.life1 = 1.1f; spc.max = 300; spc.angle = 35;
+            _splash = Fx.Make(transform, "Splash", spc); Fx.SetRate(_splash, 0);
             var sc = Fx.GlimmerCfg; sc.rate = 0; _sparkles = Fx.Make(transform, "Sparkles", sc);
             _selectionMat = Mats.NewGlow(new Color(1.4f, 1.1f, 0.5f), 1.2f, 8);
             var selGo = new GameObject("Selection");
@@ -148,7 +184,7 @@ namespace GOA.Game
 
         void BuildCrops(World w)
         {
-            _cropMat = Mats.Stylized("crops", wind: 1.4f, foliage: 0.3f, rim: 0.2f, wrap: 0.7f, snow: 0.5f);
+            _cropMat = Mats.Stylized("crops", wind: 2.4f, foliage: 0.3f, rim: 0.2f, wrap: 0.7f, snow: 0.5f);
             _cropStage = new[]
             {
                 Foliage.CropMesh(1, Palette.WheatGreen * 1.1f, 0.25f),
@@ -206,13 +242,14 @@ namespace GOA.Game
                 _sheep.Add(go.transform);
             }
             var body = BirdMesh(new Color(0.25f, 0.22f, 0.2f), 0.7f, out var wing);
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < 13; i++) // 7 swallows high up, 6 sparrows flitting low over the green
             {
                 var go = new GameObject("Swallow" + i);
                 go.transform.SetParent(_static, false);
                 go.AddComponent<MeshFilter>().sharedMesh = body;
                 go.AddComponent<MeshRenderer>().sharedMaterial = mat;
                 AddWings(go.transform, wing, mat, out _, out _);
+                if (i >= 7) go.transform.localScale = Vector3.one * 0.6f;
                 _flock.Add(go.transform);
             }
         }
@@ -246,6 +283,7 @@ namespace GOA.Game
             var w = World;
             if (w == null) return;
 
+            CitizenView.CameraPos = cam ? cam.transform.position : Vector3.zero;
             // villagers
             foreach (var c in w.Citizens)
             {
@@ -267,6 +305,7 @@ namespace GOA.Game
             TickGust(t);
             TickSelection(t, dt);
             TickOpportunities(dt);
+            TickArmedTargets(t);
 
             if (Foliage != null) Foliage.Draw(cam);
             DrawCrops(t, cam);
@@ -365,10 +404,17 @@ namespace GOA.Game
             for (int i = 0; i < _flock.Count; i++)
             {
                 float a = Time.time * 0.25f + i * 0.4f;
-                var c = new Vector3(Mathf.Cos(a * 0.7f) * 70, 32 + Mathf.Sin(a * 1.3f + i) * 4, Mathf.Sin(a * 0.9f) * 50 - 10);
+                bool low = i >= 7;
+                Vector3 Path(float aa) => low
+                    ? new Vector3(Mathf.Cos(aa * 1.1f) * 26 + 4, 6.5f + Mathf.Abs(Mathf.Sin(aa * 6f + i)) * 1.6f, Mathf.Sin(aa * 0.8f) * 20)
+                    : new Vector3(Mathf.Cos(aa * 0.7f) * 70, 32 + Mathf.Sin(aa * 1.3f + i) * 4, Mathf.Sin(aa * 0.9f) * 50 - 10);
+                if (low) a = Time.time * 0.32f + i * 0.9f;
+                var c = Path(a);
+                if (low) c.y += TerrainBuilder.Height(c.x, c.z);
                 var off = new Vector3(Mathf.Cos(i * 2.1f) * 3, Mathf.Sin(i * 1.7f), Mathf.Sin(i * 2.1f) * 3);
                 var p = c + off;
-                var next = new Vector3(Mathf.Cos((a + 0.01f) * 0.7f) * 70, c.y, Mathf.Sin((a + 0.01f) * 0.9f) * 50 - 10) + off;
+                var next = Path(a + 0.01f) + off;
+                if (low) next.y += TerrainBuilder.Height(next.x, next.z);
                 _flock[i].position = p;
                 _flock[i].rotation = Quaternion.LookRotation(next - p);
                 float f = Mathf.Sin(Time.time * 12 + i) * 45;
@@ -442,6 +488,51 @@ namespace GOA.Game
             }
         }
 
+        void TickArmedTargets(double t)
+        {
+            int n = 0;
+            void Ring(Vector3 at, float r, bool valid)
+            {
+                if (n >= _targetRings.Count)
+                {
+                    var go = new GameObject("Target");
+                    go.transform.SetParent(transform, false);
+                    go.AddComponent<MeshFilter>().sharedMesh = Fx.Ring(0.84f, 1f, 32);
+                    var m = Mats.NewGlow(Color.white, 1.2f, 4);
+                    var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = m; mr.shadowCastingMode = ShadowCastingMode.Off;
+                    _targetRings.Add((go.transform, m));
+                }
+                var (tr, mat) = _targetRings[n++];
+                if (!tr.gameObject.activeSelf) tr.gameObject.SetActive(true);
+                tr.position = at + Vector3.up * 0.1f;
+                float pulse = valid ? 1 + Mathf.Sin(Time.unscaledTime * 5f + n) * 0.08f : 1;
+                tr.localScale = new Vector3(r * pulse, 1, r * pulse);
+                mat.SetColor("_Color", valid ? new Color(0.5f, 1.3f, 1.7f) : new Color(0.22f, 0.22f, 0.26f));
+            }
+            if (Armed == PowerType.Nudge)
+            {
+                foreach (var p in World.Props)
+                {
+                    if (!p.active || !p.nudgeable) continue;
+                    bool valid = (p.type != PropType.Lantern && p.type != PropType.Cart) || p.state == 0;
+                    var pos = p.type == PropType.Cart ? World.CartPosition(t) : p.pos;
+                    Ring(TerrainBuilder.Ground(pos), p.type == PropType.Cart ? 2.4f : 1.1f, valid);
+                }
+            }
+            else if (Armed == PowerType.Distract)
+            {
+                foreach (var kv in _citizens)
+                {
+                    if (!kv.Value || !kv.Value.Visible) continue;
+                    var c = World.GetCitizen(kv.Key);
+                    if (c == null) continue;
+                    bool valid = World.IsAwakeOutside(c) && c.activity.kind != ActivityKind.Distracted;
+                    Ring(kv.Value.transform.position, 0.9f, valid);
+                }
+            }
+            for (int i = n; i < _targetRings.Count; i++) if (_targetRings[i].t.gameObject.activeSelf) _targetRings[i].t.gameObject.SetActive(false);
+        }
+
         void TickSelection(double t, float dt)
         {
             Vector3? at = null; float r = 1.2f;
@@ -477,8 +568,46 @@ namespace GOA.Game
             switch (e.type)
             {
                 case SimEventType.Intervention:
-                    RippleFx.Spawn(p, Palette.Fate, 10);
-                    Burst(_sparkles, p + Vector3.up, 40);
+                {
+                    // each power has its own colour and shape of impact
+                    var col = e.power switch
+                    {
+                        PowerType.Gust => new Color(0.6f, 1.2f, 1.7f), PowerType.Distract => new Color(1.3f, 0.75f, 1.8f),
+                        PowerType.Drop => new Color(0.9f, 0.9f, 1.1f), _ => Palette.Fate
+                    };
+                    RippleFx.Spawn(p, col, e.power == PowerType.Gust ? 16 : 10);
+                    RippleFx.Spawn(p, col * 0.7f, e.power == PowerType.Gust ? 9 : 5);
+                    Burst(_sparkles, p + Vector3.up, 60);
+                    if (e.power == PowerType.Nudge) Burst(_dust, p, 5);
+                    break;
+                }
+                case SimEventType.Mishap:
+                case SimEventType.FoodLoss:
+                    Burst(_dust, p, 14);
+                    if (e.causes.Length > 0 || e.roots.Length > 0) RippleFx.Spawn(p, Palette.FateCool, 5);
+                    break;
+                case SimEventType.Meeting:
+                case SimEventType.Friendship:
+                case SimEventType.Courtship:
+                    Burst(_sparkles, p + Vector3.up * 1.6f, e.magnitude >= 2 ? 35 : 15);
+                    if (e.roots.Length > 0) RippleFx.Spawn(p, Palette.Fate, 5);
+                    break;
+                case SimEventType.Rivalry:
+                case SimEventType.Brawl:
+                    Burst(_dust, p, 8);
+                    RippleFx.Spawn(p, new Color(1.6f, 0.35f, 0.25f), 5);
+                    break;
+                case SimEventType.FireStarted:
+                case SimEventType.FireSpread:
+                    Burst(_dust, p, 20);
+                    RippleFx.Spawn(p, new Color(1.9f, 0.7f, 0.2f), 12);
+                    break;
+                case SimEventType.FireExtinguished:
+                    Burst(_splash, p + Vector3.up * 1.5f, 120);
+                    Burst(_dust, p + Vector3.up * 2, 10);
+                    break;
+                case SimEventType.ItemFound:
+                    Burst(_sparkles, p + Vector3.up * 0.6f, 20);
                     break;
                 case SimEventType.Trip:
                 case SimEventType.ItemDropped:
@@ -685,9 +814,10 @@ namespace GOA.Game
                     {
                         BuildingType.Forge => h >= 8 && h < 17,
                         BuildingType.Tavern => h >= 10 && h < 23,
-                        _ => (h >= 6 && h < 8.5) || (h >= 17 && h < 22) || (winter && h >= 6 && h < 22)
+                        _ => (h >= 6 && h < 8.5) || (h >= 11 && h < 13) || (h >= 17 && h < 22.5) || (winter && h >= 6 && h < 22.5)
                     };
-                    Fx.SetRate(_smoke, on ? (b.type == BuildingType.Forge ? 6 : 2.2f) : 0);
+                    // a lit hearth smokes properly; an idle one still breathes a thin wisp by day
+                    Fx.SetRate(_smoke, on ? (b.type == BuildingType.Forge ? 8 : 3.6f) : (h >= 7 && h < 21 ? 0.6f : 0));
                 }
             }
         }

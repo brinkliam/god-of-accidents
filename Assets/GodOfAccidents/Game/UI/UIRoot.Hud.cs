@@ -15,7 +15,6 @@ namespace GOA.Game
             (PowerType.Nudge, "nudge", "Nudge"), (PowerType.Gust, "gust", "Gust"), (PowerType.Distract, "distract", "Distract"), (PowerType.Drop, "drop", "Drop"),
         };
 
-        static readonly string[] LockedPowers = { "Delay", "Redirect", "Coincidence", "Probability Shift", "Fate Fracture" };
 
         void BuildHud()
         {
@@ -23,6 +22,9 @@ namespace GOA.Game
             var top = new VisualElement(); top.AddToClassList("topbar"); top.pickingMode = PickingMode.Ignore;
             var chips = new VisualElement(); chips.AddToClassList("chips"); chips.pickingMode = PickingMode.Ignore;
             var eraChip = Chip(out _era, "era"); eraChip.style.flexDirection = FlexDirection.Column; eraChip.style.alignItems = Align.FlexStart;
+            eraChip.AddToClassList("chip-era");
+            // on compact screens the other chips fold away; tapping the clock opens them
+            eraChip.RegisterCallback<ClickEvent>(_ => { _hud.ToggleInClassList("chips-open"); Audio?.Ui("select"); });
             _clock = L("", "clock"); eraChip.Add(_clock);
             chips.Add(eraChip);
             chips.Add(Chip(out _weather));
@@ -38,6 +40,7 @@ namespace GOA.Game
             {
                 int idx = i;
                 var b = IconBtn(icons[i], () => S.SetSpeed(idx), GameSession.SpeedNames[i] + $"  (F{i + 1})", 16, "timebtn");
+                if (i == 2 || i >= 4) b.AddToClassList("speed-extra");
                 _speedButtons.Add((b, i));
                 tb.Add(b);
             }
@@ -74,7 +77,12 @@ namespace GOA.Game
             energy.Add(track);
             _energyText = L("", "tiny");
             energy.Add(_energyText);
-            _energyAdBtn = Btn("+3 energy  (watch ad)", () => Rewarded(Placements.ExtraEnergy, () => S.GrantEnergy(3)), "btn-ad");
+            _energyAdBtn = Btn("+3 energy  (watch ad)", () =>
+            {
+                var ww = S.World;
+                if (ww != null && ww.Energy >= ww.Scenario.maxEnergy - 0.05f) { Toast("Your divine energy is already full."); return; }
+                Rewarded(Placements.ExtraEnergy, () => S.GrantEnergy(3));
+            }, "btn-ad");
             _energyAdBtn.style.fontSize = 12; _energyAdBtn.style.marginTop = 6;
             energy.Add(_energyAdBtn);
             _glimpseBtn = Btn("Glimpse the future  (ad)", () => Rewarded(Placements.GlimpseOfFuture, () => { S.GlimpseArmed = true; Toast("Your next intervention will be foreseen before it happens."); }), "btn-ad");
@@ -97,15 +105,6 @@ namespace GOA.Game
                 _powerButtons[p] = pb;
                 bar.Add(pb);
             }
-            var locked = new VisualElement { style = { flexDirection = FlexDirection.Row, marginLeft = 14, alignItems = Align.FlexEnd } };
-            foreach (var n in LockedPowers)
-            {
-                var lb = new VisualElement(); lb.AddToClassList("power"); lb.AddToClassList("power-locked");
-                lb.Add(new UIIcon("lock", 18));
-                lb.tooltip = n + " - not yet awakened (coming in a later age)";
-                locked.Add(lb);
-            }
-            bar.Add(locked);
             _hud.Add(bar);
 
             // ---------- chronicle
@@ -160,29 +159,46 @@ namespace GOA.Game
             _era.text = World.EraName(w.Era).ToUpperInvariant();
             int hr = (int)SimTime.HourOfDay(t), mn = (int)((t % SimTime.Hour) / SimTime.Minute);
             _clock.text = $"Year {SimTime.Year1(t)} · {SimTime.SeasonOf(t)} {SimTime.DayOfSeason(t)} · {hr:00}:{mn:00}";
-            _weather.text = w.Weather + (w.WindStrength > 0.7f ? " · windy" : "");
+            var atmo = S.View != null ? S.View.Atmosphere : null;
+            _weather.text = (atmo != null && !string.IsNullOrEmpty(atmo.WeatherLabel) ? atmo.WeatherLabel : w.Weather.ToString()) + (w.WindStrength > 0.7f ? " · windy" : "");
             _pop.text = $"{w.Population} souls";
             _food.text = $"Food {w.DaysOfFood:0} days" + (w.FoodPrice > 2 ? " · bread dear" : "");
             _prosperity.text = $"Prosperity {(int)(w.Prosperity * 100)}%";
             foreach (var (b, idx) in _speedButtons) b.EnableInClassList("btn-on", idx == S.SpeedIndex);
             _speedName.text = GameSession.SpeedNames[S.SpeedIndex];
+            RefreshPowers();
             float max = w.Scenario.maxEnergy;
             _energyFill.style.width = new Length(Mathf.Clamp01(w.Energy / Mathf.Max(1, max)) * 100, LengthUnit.Percent);
             string cap = w.Scenario.maxInterventions > 0 ? $" · interventions {w.InterventionCount}/{w.Scenario.maxInterventions}" : "";
             _energyText.text = $"{w.Energy:0.0} / {max:0}{cap}";
-            _energyAdBtn.EnableInClassList("btn-disabled", !Svc.Ads.CanShow(Placements.ExtraEnergy, out _));
+            bool full = w.Energy >= max - 0.05f;
+            _energyAdBtn.EnableInClassList("btn-disabled", full || !Svc.Ads.CanShow(Placements.ExtraEnergy, out _));
+            _energyAdBtn.text = full ? "Energy full" : "+3 energy  (watch ad)";
             _glimpseBtn.text = S.GlimpseArmed ? "Glimpse ready - act to foresee" : "Glimpse the future  (ad)";
             foreach (var kv in _powerButtons)
                 kv.Value.EnableInClassList("btn-disabled", w.Energy + 1e-3f < World.CostOf(kv.Key) || (w.Scenario.maxInterventions > 0 && w.InterventionCount >= w.Scenario.maxInterventions));
 
-            if (S.Timeline != null && S.Timeline.Scenario.isChallenge)
+            if (S.Timeline != null && S.Challenge != null && S.Challenge.steps.Count > 0)
             {
                 var c = S.Challenge;
-                _objective.Q<Label>("objTitle").text = S.Timeline.Scenario.title.ToUpperInvariant();
+                bool challenge = S.Timeline.Scenario.isChallenge;
+                _objective.Q<Label>("objTitle").text = challenge ? S.Timeline.Scenario.title.ToUpperInvariant() : "FIRST STEPS";
                 _objHead.text = c.headline;
+                int doneCount = 0;
+                foreach (var st in c.steps) if (st.done) doneCount++;
+                // a small celebration when an optional goal is reached
+                if (!challenge && _goalsDone >= 0 && doneCount > _goalsDone)
+                {
+                    foreach (var st in c.steps) if (st.done && !_goalsSeen.Contains(st.text)) { Toast("Goal reached: " + st.text); Audio?.Ui("codex"); }
+                }
+                _goalsDone = doneCount;
+                foreach (var st in c.steps) if (st.done) _goalsSeen.Add(st.text);
                 _objSteps.Clear();
+                int shownOpen = 0;
                 foreach (var (text, done) in c.steps)
                 {
+                    // sandbox: show the finished goals and the next two, not a wall of text
+                    if (!challenge && !done && ++shownOpen > 2) continue;
                     var ic = new UIIcon(done ? "check" : "dotEmpty", 14) { Tint = done ? new Color(0.6f, 0.95f, 0.55f) : new Color(1, 1, 1, 0.5f) };
                     _objSteps.Add(Row(ic, L(" " + text, done ? "small" : "tiny")));
                 }
@@ -192,6 +208,7 @@ namespace GOA.Game
         void RefreshPowers()
         {
             foreach (var kv in _powerButtons) kv.Value.EnableInClassList("power-on", PC.Active == kv.Key);
+            _hud.EnableInClassList("power-armed", PC.Active.HasValue);
         }
 
         // ------------------------------------------------------------------ inspector
@@ -424,8 +441,8 @@ namespace GOA.Game
             int fullAncestry = w.Ledger.Ancestry(e.id).Count;
             var actions = new VisualElement(); actions.AddToClassList("row"); actions.AddToClassList("wrap");
             if (e.hasPos) actions.Add(Btn("Show me", () => Rig.FocusOn(TerrainBuilder.Ground(e.pos), 28, 1.4f), "btn-ghost"));
-            if (S.Mode == SessionMode.Playing) actions.Add(Btn("Replay", () => { S.EnterReplay(e); }, "btn-ghost"));
-            if (S.Mode == SessionMode.Playing) actions.Add(Btn("Branch from before", () => S.Branch(Math.Max(World.StartTime, e.time - SimTime.Hour)), "btn-ghost"));
+            if (S.Mode == SessionMode.Playing) actions.Add(Btn("Replay", () => Veil("Rewinding time...", () => S.EnterReplay(e)), "btn-ghost"));
+            if (S.Mode == SessionMode.Playing) actions.Add(Btn("Branch from before", () => Veil("Splitting the timeline...", () => S.Branch(Math.Max(World.StartTime, e.time - SimTime.Hour))), "btn-ghost"));
             if (fullAncestry > chain.Count - 1 || e.roots.Length > 0)
                 actions.Add(Btn("Historical Insight (ad)", () => Rewarded(Placements.HistoricalInsight, () => Insight(e)), "btn-ad"));
             b.Add(actions);

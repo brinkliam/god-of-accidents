@@ -37,8 +37,8 @@ namespace GOA.Game
             {
                 case SimEventType.Intervention: return 0;
                 case SimEventType.Trip: case SimEventType.ItemDropped: case SimEventType.ItemFound: case SimEventType.CartRoll:
-                case SimEventType.LanternFall: case SimEventType.Injury: case SimEventType.WellBroken: case SimEventType.LightningStrike: return 1;
-                case SimEventType.Meeting: case SimEventType.Courtship: case SimEventType.Marriage: case SimEventType.Birth: case SimEventType.Rivalry: case SimEventType.Death: case SimEventType.Emigration: return 2;
+                case SimEventType.LanternFall: case SimEventType.Injury: case SimEventType.WellBroken: case SimEventType.LightningStrike: case SimEventType.Mishap: return 1;
+                case SimEventType.Meeting: case SimEventType.Courtship: case SimEventType.Marriage: case SimEventType.Birth: case SimEventType.Rivalry: case SimEventType.Death: case SimEventType.Emigration: case SimEventType.Friendship: case SimEventType.Brawl: return 2;
                 case SimEventType.Spark: case SimEventType.Apprenticeship: case SimEventType.ComingOfAge: case SimEventType.Discovery: case SimEventType.Heroism: case SimEventType.Rescue: case SimEventType.Donation: return 3;
                 case SimEventType.FireStarted: case SimEventType.FireSpread: case SimEventType.FireExtinguished: case SimEventType.BuildingDestroyed: case SimEventType.FoodLoss: case SimEventType.Famine: return 4;
                 case SimEventType.Scarcity: case SimEventType.MerchantFortune: case SimEventType.Prosperity: case SimEventType.Construction: case SimEventType.PopulationMilestone: return 5;

@@ -11,6 +11,8 @@ namespace GOA.Game
         public float Night { get; private set; }
         public float SunElevation { get; private set; }
         public Weather CurrentWeather { get; private set; }
+        /// <summary>What the sky is showing right now (it eases between weathers), for the HUD.</summary>
+        public string WeatherLabel { get; private set; } = "";
         ParticleSystem _rain, _snow, _fireflies, _butterflies, _windStreaks, _leaves;
         Transform _weatherAnchor;
         readonly List<Transform> _clouds = new List<Transform>();
@@ -139,6 +141,10 @@ namespace GOA.Game
             CurrentWeather = w.Weather;
             float targetStorm = w.Weather switch { Weather.Storm => 1f, Weather.Rain => 0.65f, Weather.Cloudy => 0.35f, Weather.Snow => 0.5f, _ => 0f };
             _weatherBlend = Mathf.MoveTowards(_weatherBlend, targetStorm, dt * 0.25f);
+            string wl = w.Weather == Weather.Cloudy ? "Overcast" : w.Weather.ToString();
+            if (_weatherBlend < targetStorm - 0.15f) wl += " rolling in";
+            else if (_weatherBlend > targetStorm + 0.15f) wl = (w.Weather == Weather.Clear ? "Clearing" : wl + ", easing");
+            WeatherLabel = wl;
 
             Color zenith = Lerp3(new Color(0.02f, 0.03f, 0.09f), new Color(0.16f, 0.18f, 0.38f), new Color(0.33f, 0.47f, 0.74f), new Color(0.3f, 0.55f, 0.88f), elev);
             Color horizon = Lerp3(new Color(0.06f, 0.08f, 0.17f), new Color(0.78f, 0.42f, 0.42f), new Color(1.0f, 0.74f, 0.52f), new Color(0.74f, 0.86f, 0.96f), elev);

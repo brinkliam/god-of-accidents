@@ -106,7 +106,7 @@ namespace GOA.Game
 
         public static PSConfig ChimneyCfg => new PSConfig
         {
-            rate = 2.2f, life0 = 4, life1 = 6, size0 = 0.5f, size1 = 1.1f, speed0 = 0.5f, speed1 = 0.9f, gravity = -0.04f, radius = 0.15f, angle = 6,
+            rate = 2.2f, life0 = 5, life1 = 8, size0 = 0.6f, size1 = 1.5f, speed0 = 0.6f, speed1 = 1.1f, gravity = -0.05f, radius = 0.15f, angle = 7,
             c0 = new Color(0.8f, 0.8f, 0.82f, 0.45f), c1 = new Color(0.65f, 0.65f, 0.68f, 0.35f), additive = false, world = true, softness = 1, shape = 2, max = 60, noise = 0.25f
         };
 

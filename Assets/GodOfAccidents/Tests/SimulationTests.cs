@@ -399,5 +399,47 @@ namespace GOA.Tests
             b.AdvanceTo(World.StartTime + 30 * SimTime.Hour);
             Assert.AreEqual(b.StateHash(), a.StateHash());
         }
+
+        [Test]
+        public void TapNudgeTargetIsReachableAndPure()
+        {
+            var a = new World(31); var b = new World(31);
+            a.AdvanceTo(World.StartTime + 3 * SimTime.Hour); b.AdvanceTo(World.StartTime + 3 * SimTime.Hour);
+            foreach (var p in a.Props)
+            {
+                if (!p.active || (p.type != PropType.Pebble && p.type != PropType.GroundItem)) continue;
+                var to = a.SuggestNudgeTarget(p.id);
+                Assert.LessOrEqual(Vec2.Distance(to, p.pos), World.NudgeRange + 0.01f);
+                Assert.IsTrue(a.Validate(PlayerInput.Nudge(p.id, to)).ok, "a tap-nudge must always be a legal nudge");
+            }
+            Assert.AreEqual(b.StateHash(), a.StateHash());
+        }
+
+        [Test]
+        public void SandboxGoalsGuideButNeverEndTheGame()
+        {
+            var w = new World(8, ScenarioDef.Sandbox);
+            w.AdvanceTo(World.StartTime + 2 * SimTime.Day);
+            var s = Challenges.Evaluate(w);
+            Assert.AreEqual(ChallengeState.None, s.state);
+            Assert.GreaterOrEqual(s.steps.Count, 4);
+            Assert.IsFalse(s.steps[0].done, "no power used yet");
+        }
+
+        [TestCase(1UL)]
+        [TestCase(2026UL)]
+        [TestCase(12251UL)]
+        public void OpportunitiesShowUpInTheOpeningHours(ulong seed)
+        {
+            var w = new World(seed);
+            int withHints = 0, samples = 0;
+            for (long t = World.StartTime + 20 * SimTime.Minute; t <= World.StartTime + 4 * SimTime.Hour; t += 10 * SimTime.Minute)
+            {
+                w.AdvanceTo(t);
+                samples++;
+                if (w.FindOpportunities(4).Count > 0) withHints++;
+            }
+            Assert.GreaterOrEqual(withHints, samples / 3, "markers should be on screen for much of the first minutes of play");
+        }
     }
 }

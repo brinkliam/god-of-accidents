@@ -21,6 +21,11 @@ namespace GOA.Game
         public bool InputEnabled = true;
         public bool AutoOrbit;                             // main-menu vista
         public Func<Vector3> Follow;
+        /// <summary>Lowest height the camera may sit at this spot (roofs, towers). Supplied by the world view.</summary>
+        public Func<Vector3, float> CameraFloor = _ => float.MinValue;
+        /// <summary>True while time is paused: the camera holds still unless the player moves it.</summary>
+        public bool Frozen;
+        float _shake, _shakeAmp;
         float _cineT = -1, _cineDur;
         Vector3 _cineFromT, _cineToT;
         float _cineFromD, _cineToD, _cineFromYaw, _cineToYaw, _cineFromPitch, _cineToPitch;
@@ -59,7 +64,7 @@ namespace GOA.Game
         {
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.1f);
             if (InputEnabled && !AutoOrbit) HandleInput(dt);
-            if (AutoOrbit) Yaw += dt * 2.2f;
+            if (AutoOrbit && !Frozen) Yaw += dt * 2.2f;
 
             if (_cineT >= 0)
             {
@@ -74,7 +79,7 @@ namespace GOA.Game
                 Pitch = Mathf.Lerp(_cineFromPitch, _cineToPitch, e);
                 if (u >= 1) _cineT = -1;
             }
-            else if (Follow != null)
+            else if (Follow != null && !Frozen)
             {
                 Target = Vector3.Lerp(Target, Follow(), 1 - Mathf.Exp(-dt * 4));
             }
@@ -97,10 +102,24 @@ namespace GOA.Game
             var pos = _targetS - rot * Vector3.forward * _distS;
             float ground = TerrainBuilder.Height(pos.x, pos.z) + 2.5f;
             if (pos.y < ground) pos.y = ground;
-            Cam.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(_targetS - pos));
+            // never end up inside a roof: lift over buildings, easing so close-ups glide over the eaves
+            float floor = CameraFloor(pos);
+            if (pos.y < floor) pos.y = Mathf.Lerp(pos.y, floor, 0.85f);
+            var look = Quaternion.LookRotation(_targetS - pos);
+            if (_shake > 0)
+            {
+                _shake -= dt;
+                float a = _shakeAmp * Mathf.Clamp01(_shake * 3f) * Mathf.Min(1.5f, _distS / 40f);
+                pos += new Vector3(Mathf.PerlinNoise(Time.unscaledTime * 23f, 0.1f) - 0.5f, Mathf.PerlinNoise(0.7f, Time.unscaledTime * 21f) - 0.5f, 0) * a;
+            }
+            Cam.transform.SetPositionAndRotation(pos, look);
+
         }
 
         void UserInput() { _lastUserInput = Time.unscaledTime; _cineT = -1; }
+
+        /// <summary>A short camera jolt, scaled by how far out the camera is.</summary>
+        public void Shake(float amplitude, float seconds) { if (GameSettings.ReduceMotion) return; _shakeAmp = Mathf.Max(_shakeAmp * (_shake > 0 ? 1 : 0), amplitude); _shake = Mathf.Max(_shake, seconds); }
 
         void HandleInput(float dt)
         {

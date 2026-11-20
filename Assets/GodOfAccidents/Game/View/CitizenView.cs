@@ -7,7 +7,11 @@ namespace GOA.Game
     public sealed class CitizenView : MonoBehaviour
     {
         public int citizenId;
-        Transform _body, _legL, _legR, _armL, _armR, _carry;
+        Transform _body, _legL, _legR, _armL, _armR, _carry, _pack;
+        /// <summary>Shared puff emitter for footsteps (set by the world view).</summary>
+        public static ParticleSystem StepDust;
+        public static Vector3 CameraPos;
+        float _lastStepSign;
         float _phase, _yaw;
         Vector3 _lastPos;
         bool _hasLast;
@@ -150,6 +154,28 @@ namespace GOA.Game
                 _carry.gameObject.AddComponent<MeshFilter>().sharedMesh = tk.ToMesh("Tool");
                 _carry.gameObject.AddComponent<MeshRenderer>().sharedMaterial = Mat;
             }
+            // loads carried on the road: a log bundle, a sack on the back or a basket on the hip
+            if (c.occupation != Occupation.Merchant && c.occupation != Occupation.Toddler)
+            {
+                var pk = new MeshKit();
+                if (c.occupation == Occupation.Woodcutter)
+                {
+                    pk.M = Matrix4x4.TRS(new Vector3(0, 1.32f, -0.05f), Quaternion.Euler(0, 0, 90), Vector3.one);
+                    for (int i = 0; i < 3; i++) pk.Cylinder(new Vector3(-0.07f + i * 0.07f, -0.35f, 0.02f * i), 0.06f, 0.7f, 6, Palette.Timber * (1.1f + i * 0.08f));
+                }
+                else if (c.id % 2 == 0)
+                    pk.Blob(new Vector3(0, 0.95f, -0.2f), new Vector3(0.2f, 0.24f, 0.13f), new Color(0.72f, 0.62f, 0.44f), c.id, 0.06f, 0);
+                else
+                {
+                    pk.Cylinder(new Vector3(0.3f, 0.62f, 0.08f), 0.15f, 0.16f, 8, new Color(0.62f, 0.44f, 0.22f));
+                    pk.Blob(new Vector3(0.3f, 0.79f, 0.08f), new Vector3(0.12f, 0.06f, 0.12f), c.id % 3 == 0 ? new Color(0.8f, 0.16f, 0.1f) : new Color(0.55f, 0.7f, 0.3f), c.id, 0.05f, 0);
+                }
+                _pack = new GameObject("Pack").transform;
+                _pack.SetParent(_body, false);
+                _pack.gameObject.AddComponent<MeshFilter>().sharedMesh = pk.ToMesh("Pack");
+                _pack.gameObject.AddComponent<MeshRenderer>().sharedMaterial = Mat;
+                _pack.gameObject.SetActive(false);
+            }
             _renderers = GetComponentsInChildren<MeshRenderer>(true);
         }
 
@@ -222,6 +248,22 @@ namespace GOA.Game
             }
             if (c.AgeYears((long)t) > 64) tilt += 10;
 
+            if (_pack)
+            {
+                bool carrying = kind == ActivityKind.Travel && c.AgeYears((long)t) >= 14
+                    && (c.cargoItem != ItemType.None || c.occupation == Occupation.Woodcutter || (c.id + SimTime.DayIndex((long)t)) % 3 != 0);
+                if (_pack.gameObject.activeSelf != carrying) _pack.gameObject.SetActive(carrying);
+            }
+            // a puff of dust at each footfall, only near the camera and at watchable speeds
+            if (kind == ActivityKind.Travel && StepDust && simSpeed <= 700 && Visible)
+            {
+                float sign = Mathf.Sign(s);
+                if (sign != _lastStepSign)
+                {
+                    _lastStepSign = sign;
+                    if ((pos - CameraPos).sqrMagnitude < 55 * 55) { StepDust.transform.position = pos + Vector3.up * 0.05f; StepDust.Emit(1); }
+                }
+            }
             transform.position = pos + Vector3.up * bob * _scale;
             transform.rotation = Quaternion.Euler(0, _yaw, 0);
             _body.localRotation = Quaternion.Euler(tilt, 0, 0);

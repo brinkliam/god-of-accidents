@@ -93,8 +93,31 @@ namespace GOA.Sim
             {
                 case "forgotten_genius": ForgottenGenius(w, s); break;
                 case "one_pebble": OnePebble(w, s); break;
+                default: OptionalGoals(w, s); break;
             }
             return s;
+        }
+
+        /// <summary>Light, optional direction for sandbox worlds. Never wins or fails anything.</summary>
+        static void OptionalGoals(World w, ChallengeStatus s)
+        {
+            s.state = ChallengeState.None;
+            s.headline = "Optional goals - play however you like.";
+            bool chain3 = false, meet = false, spark = false, friends = false;
+            foreach (var e in w.Ledger.Events)
+            {
+                if (e.roots.Length == 0) continue;
+                if (e.depth >= 3) chain3 = true;
+                if (e.type == SimEventType.Meeting) meet = true;
+                if (e.type == SimEventType.Spark) spark = true;
+                if (e.type == SimEventType.Friendship) friends = true;
+            }
+            s.steps.Add(("Use a divine power (tap a glowing marker)", w.InterventionCount > 0));
+            s.steps.Add(("Start a chain reaction three links long", chain3));
+            s.steps.Add(("Bring two strangers together", meet));
+            s.steps.Add(("Turn a meeting you caused into a friendship", friends));
+            s.steps.Add(("Wake a spark of wonder in a young mind", spark));
+            s.steps.Add(("Grow the hamlet into a village", w.Era >= Era.Village));
         }
 
         static int Stars(World w)

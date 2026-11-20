@@ -5,30 +5,30 @@
 .hidden { display: none; }
 
 .panel {
-    background-color: rgba(14, 16, 28, 0.72);
-    border-color: rgba(242, 196, 109, 0.28);
+    background-color: rgba(22, 18, 30, 0.84);
+    border-color: rgba(242, 196, 109, 0.45);
     border-width: 1px;
     border-radius: 14px;
     padding: 12px 14px;
 }
 .panel-soft { background-color: rgba(14, 16, 28, 0.5); border-radius: 12px; padding: 8px 12px; }
 
-Label { color: rgb(240, 233, 216); font-size: 14px; white-space: normal; }
+Label { color: rgb(248, 242, 228); font-size: 15px; white-space: normal; }
 .title-xl { font-size: 64px; color: rgb(250, 232, 190); -unity-font-style: bold; letter-spacing: 14px; -unity-text-align: middle-center; text-shadow: 0 4px 18px rgba(255, 170, 70, 0.55); }
 .title-sub { font-size: 17px; color: rgba(240, 225, 195, 0.85); letter-spacing: 4px; -unity-text-align: middle-center; margin-top: 6px; }
 .h1 { font-size: 22px; color: rgb(250, 228, 182); -unity-font-style: bold; letter-spacing: 2px; margin-bottom: 6px; }
 .h2 { font-size: 16px; color: rgb(242, 196, 109); -unity-font-style: bold; letter-spacing: 1px; margin-top: 8px; margin-bottom: 4px; }
-.small { font-size: 12px; color: rgba(225, 218, 200, 0.75); }
-.tiny { font-size: 11px; color: rgba(225, 218, 200, 0.6); }
+.small { font-size: 13px; color: rgba(238, 230, 212, 0.9); }
+.tiny { font-size: 12px; color: rgba(232, 224, 206, 0.8); }
 .gold { color: rgb(242, 196, 109); }
-.muted { color: rgba(225, 218, 200, 0.55); }
+.muted { color: rgba(232, 224, 206, 0.7); }
 
 .btn {
     background-color: rgba(255, 255, 255, 0.06);
     border-color: rgba(242, 196, 109, 0.35);
     border-width: 1px;
     border-radius: 10px;
-    padding: 8px 14px;
+    padding: 8px 14px; min-height: 44px;
     margin: 3px;
     color: rgb(244, 236, 216);
     font-size: 15px;
@@ -51,11 +51,11 @@ Label { color: rgb(240, 233, 216); font-size: 14px; white-space: normal; }
 .topbar { position: absolute; left: 12px; top: 12px; right: 12px; flex-direction: row; justify-content: space-between; align-items: flex-start; }
 .chips { flex-direction: row; align-items: center; }
 .chip { flex-direction: row; align-items: center; background-color: rgba(14, 16, 28, 0.66); border-radius: 18px; padding: 5px 12px; margin-right: 6px; border-color: rgba(255,255,255,0.08); border-width: 1px; }
-.chip Label { font-size: 14px; }
+.chip Label { font-size: 15px; }
 .era { font-size: 13px; color: rgb(242, 196, 109); letter-spacing: 2px; -unity-font-style: bold; }
 .clock { font-size: 15px; -unity-font-style: bold; }
 .timebar { flex-direction: row; align-items: center; }
-.timebtn { width: 40px; height: 36px; padding: 0; font-size: 15px; }
+.timebtn { width: 46px; height: 46px; min-height: 46px; padding: 0; font-size: 15px; margin: 2px; }
 
 /* power bar */
 .powerbar { position: absolute; bottom: 14px; left: 0; right: 0; flex-direction: row; justify-content: center; align-items: flex-end; }
@@ -70,7 +70,7 @@ Label { color: rgb(240, 233, 216); font-size: 14px; white-space: normal; }
 .power-on { border-color: rgb(255, 222, 150); background-color: rgba(120, 88, 40, 0.88); scale: 1.1 1.1; translate: 0 -8px; }
 .power-locked { opacity: 0.32; width: 60px; height: 60px; border-radius: 30px; }
 .power-glyph { font-size: 30px; color: rgb(250, 228, 182); -unity-text-align: middle-center; margin: 0; padding: 0; }
-.power-name { font-size: 12px; color: rgb(240, 233, 216); -unity-text-align: middle-center; letter-spacing: 1px; margin: 0; }
+.power-name { font-size: 13px; color: rgb(240, 233, 216); -unity-text-align: middle-center; letter-spacing: 1px; margin: 0; }
 .power-cost { flex-direction: row; justify-content: center; height: 6px; margin-top: 2px; }
 .power-cost-dot { width: 5px; height: 5px; margin: 0 2px; border-radius: 3px; background-color: rgb(242, 196, 109); }
 .energy { width: 200px; margin-right: 18px; margin-bottom: 8px; }
@@ -80,9 +80,9 @@ Label { color: rgb(240, 233, 216); font-size: 14px; white-space: normal; }
 /* side panels */
 .inspector { position: absolute; right: 12px; top: 72px; width: 340px; max-height: 78%; }
 .chronicle { }
-.chron-row { flex-direction: row; align-items: center; padding: 1px 4px; border-radius: 6px; }
+.chron-row { flex-direction: row; align-items: center; padding: 2px 4px; border-radius: 6px; flex-shrink: 0; }
 .chronicle Label { margin: 0; padding: 0; }
-.chronicle .small { font-size: 12px; }
+.chronicle .small { font-size: 13px; }
 .chron-row:hover { background-color: rgba(242, 196, 109, 0.12); }
 .dot { width: 9px; height: 9px; border-radius: 5px; margin-right: 8px; flex-shrink: 0; }
 .leftcol { position: absolute; left: 12px; top: 96px; width: 320px; }
@@ -95,7 +95,7 @@ Label { color: rgb(240, 233, 216); font-size: 14px; white-space: normal; }
 .row { flex-direction: row; align-items: center; }
 .wrap { flex-wrap: wrap; }
 .spacer { flex-grow: 1; }
-.tag { background-color: rgba(242, 196, 109, 0.16); border-radius: 8px; padding: 2px 8px; margin: 2px; font-size: 12px; color: rgb(246, 220, 168); }
+.tag { background-color: rgba(242, 196, 109, 0.2); border-radius: 8px; padding: 2px 8px; margin: 2px; font-size: 13px; color: rgb(250, 226, 176); }
 .chain-node { border-left-width: 2px; border-color: rgba(242, 196, 109, 0.6); padding-left: 10px; margin-left: 6px; padding-bottom: 6px; }
 .chain-root { border-color: rgb(255, 210, 120); }
 
@@ -134,3 +134,74 @@ Label { color: rgb(240, 233, 216); font-size: 14px; white-space: normal; }
 
 .large-text Label { font-size: 17px; }
 .large-text .small { font-size: 15px; }
+
+/* armed power: the chosen one glows, the others step back */
+.power-armed .power { opacity: 0.55; }
+.power-armed .power-on { opacity: 1; border-width: 3px; border-color: rgb(255, 230, 160); background-color: rgba(150, 105, 40, 0.95); }
+
+/* cause -> effect card */
+.chain-layer { position: absolute; bottom: 132px; left: 0; right: 0; align-items: center; }
+.chain-card {
+    background-color: rgba(30, 22, 12, 0.9);
+    border-color: rgba(255, 214, 140, 0.75); border-width: 2px; border-radius: 16px;
+    padding: 12px 18px; max-width: 680px; align-items: flex-start;
+}
+.chain-row { flex-direction: row; align-items: center; margin: 1px 0; }
+.chain-arrow { color: rgb(242, 196, 109); font-size: 18px; margin: 0 8px 0 4px; -unity-font-style: bold; }
+.chain-first { color: rgb(255, 222, 160); font-size: 15px; -unity-font-style: bold; }
+.chain-mid { color: rgba(245, 236, 216, 0.92); font-size: 15px; }
+.chain-last { color: rgb(255, 244, 220); font-size: 18px; -unity-font-style: bold; }
+
+/* codex unlock fanfare */
+.banner-codex { top: 18%; }
+.banner-codex .banner-kicker { color: rgb(255, 226, 150); font-size: 15px; }
+.banner-codex .banner-title { color: rgb(255, 222, 150); text-shadow: 0 0 22px rgba(255, 190, 80, 0.85); }
+
+/* gilded edges: a warm inner rim on panels and the power orbs */
+.panel { border-top-color: rgba(255, 226, 160, 0.7); }
+.power { border-top-color: rgba(255, 226, 160, 0.75); }
+.chip { background-color: rgba(22, 18, 30, 0.8); border-color: rgba(242, 196, 109, 0.3); }
+.modal { background-color: rgba(28, 22, 32, 0.95); border-width: 2px; border-color: rgba(242, 196, 109, 0.6); }
+.modal-head { flex-shrink: 0; margin-bottom: 6px; }
+.modal-head .h1 { flex-shrink: 1; }
+.modal-scroll { flex-shrink: 1; flex-grow: 1; }
+.codex-locked { color: rgba(242, 196, 109, 0.75); -unity-font-style: bold; font-size: 15px; }
+.codex-hint { font-size: 13px; color: rgba(238, 230, 212, 0.85); -unity-font-style: italic; }
+.timeline-screen { background-color: rgba(5, 6, 14, 0.97); }
+
+/* compact (narrow) screens: fold the top bar, shrink the orbs, keep 44px targets */
+.compact .chips { flex-direction: column; align-items: flex-start; }
+.compact .chips .chip { display: none; margin-bottom: 4px; }
+.compact .chips .chip-era { display: flex; }
+.compact .chips-open .chips .chip { display: flex; }
+.compact .speed-extra { display: none; }
+.compact .timebar .panel-soft Label { display: none; }
+.compact .leftcol { top: 76px; width: 270px; }
+.compact .chronicle { max-height: 210px; overflow: hidden; }
+.compact .energy { width: 156px; margin-right: 8px; }
+.compact .power { width: 78px; height: 78px; border-radius: 39px; margin: 0 3px; }
+.compact .inspector { width: 300px; top: 76px; }
+
+/* portrait: energy above the orbs, inspector as a bottom sheet */
+.portrait .powerbar { flex-wrap: wrap; bottom: 10px; }
+.portrait .energy { width: 92%; margin: 0 4% 8px 4%; flex-direction: row; flex-wrap: wrap; align-items: center; }
+.portrait .energy .energy-track { flex-grow: 1; margin: 0 8px; }
+.portrait .leftcol { width: 62%; }
+.portrait .chronicle { max-height: 170px; }
+.portrait .inspector { left: 12px; right: 12px; width: auto; top: auto; bottom: 236px; max-height: 42%; }
+.portrait .modal { width: 94%; }
+.portrait .banner-title { font-size: 30px; }
+.portrait .chain-card { max-width: 94%; }
+
+/* "folding time" veil while history is re-simulated */
+.veil { background-color: rgba(8, 8, 18, 0.55); }
+.veil-text { font-size: 22px; letter-spacing: 6px; color: rgb(255, 222, 160); -unity-text-align: middle-center; text-shadow: 0 0 18px rgba(255, 180, 80, 0.8); }
+.tutorial { position: absolute; bottom: 136px; left: 26%; right: 26%; }
+.compact .tutorial { left: 12%; right: 12%; }
+.portrait .tutorial { left: 4%; right: 4%; bottom: 250px; }
+.compact .chain-layer { bottom: 118px; }
+.portrait .chain-layer { bottom: 214px; }
+.portrait .timebtn { width: 44px; height: 44px; min-height: 44px; margin: 1px; }
+.portrait .clock { font-size: 13px; }
+.portrait .era { font-size: 11px; }
+.portrait .topbar { left: 6px; right: 6px; top: 6px; }

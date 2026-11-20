@@ -263,13 +263,13 @@ namespace GOA.Sim
                         if (d < 0) continue;
                         double eta = (d - done) / SpeedOf(c);
                         if (eta < 20 || eta > 25 * 60) continue;
-                        bool juicy = p.type == PropType.Pebble ? (c.cargoItem != ItemType.None || c.AgeYears(Time) > 60)
+                        bool juicy = p.type == PropType.Pebble ? (c.AgeYears(Time) >= 14 && !c.offMapResident || c.cargoItem != ItemType.None)
                                                               : (c.Has(Trait.Curious) && c.AgeYears(Time) <= 20);
                         if (!juicy) continue;
                         string hint = p.type == PropType.Pebble
-                            ? (c.cargoItem != ItemType.None ? $"{c.Name} is coming this way with a {c.cargo}" : $"{c.Name} is coming this way on unsteady feet")
+                            ? (c.cargoItem != ItemType.None ? $"{c.Name} is coming this way with a {c.cargo}" : $"{c.Name} is walking this way")
                             : $"Curious {c.firstName} will pass this {ItemName(p.item)}";
-                        list.Add(new Opportunity { pos = p.pos, power = PowerType.Nudge, targetId = p.id, hint = hint, heat = c.cargoItem != ItemType.None || p.type == PropType.GroundItem ? 0.95f : 0.6f });
+                        list.Add(new Opportunity { pos = p.pos, power = PowerType.Nudge, targetId = p.id, hint = hint, heat = c.cargoItem != ItemType.None || p.type == PropType.GroundItem ? 0.95f : c.AgeYears(Time) > 60 ? 0.65f : 0.5f });
                         break;
                     }
                 }
@@ -292,9 +292,10 @@ namespace GOA.Sim
                         break;
                     }
                     var r = c.Rel(o.id);
-                    if (CanCourt(c, o) && (r == null || r.affinity < 20))
+                    if ((r == null || r.affinity < 20) && !AreFamily(c, o) && d < 11f && age >= 10 && o.AgeYears(Time) >= 10)
                     {
-                        list.Add(new Opportunity { pos = here, power = PowerType.Distract, targetId = c.id, hint = $"{c.firstName} and {o.firstName} have never really talked", heat = 0.55f });
+                        bool sparks = CanCourt(c, o);
+                        list.Add(new Opportunity { pos = here, power = PowerType.Distract, targetId = c.id, hint = $"{c.firstName} and {o.firstName} have never really talked", heat = sparks ? 0.6f : 0.45f });
                         break;
                     }
                 }
@@ -309,6 +310,54 @@ namespace GOA.Sim
                 if (result.Count >= max) break;
             }
             return result;
+        }
+
+        /// <summary>
+        /// Where a one-tap Nudge should roll this pebble or trinket: onto the path of the soonest traveller who will
+        /// pass within reach, else onto the nearest road, else a few paces toward the nearest villager. Pure query.
+        /// </summary>
+        public Vec2 SuggestNudgeTarget(int propId)
+        {
+            var p = GetProp(propId);
+            if (p == null) return default;
+            Vec2 best = p.pos; double bestEta = double.MaxValue; bool found = false;
+            foreach (var c in Citizens)
+            {
+                var a = c.activity;
+                if (!c.IsActive || a == null || a.kind != ActivityKind.Travel || a.path == null || a.path.Count < 2) continue;
+                float done = (float)((Time - a.start) * SpeedOf(c));
+                float walked = 0;
+                for (int i = 0; i + 1 < a.path.Count; i++)
+                {
+                    var s0 = a.path[i]; var s1 = a.path[i + 1];
+                    float len = Vec2.Distance(s0, s1);
+                    if (walked + len < done + 2f) { walked += len; continue; }
+                    float d = Vec2.DistanceToSegment(p.pos, s0, s1, out float u);
+                    if (d <= NudgeRange - 0.2f)
+                    {
+                        var at = Vec2.Lerp(s0, s1, u);
+                        double eta = (walked + u * len - done) / SpeedOf(c);
+                        if (eta > 5 && eta < bestEta && VillageLayout.DistanceToRiver(at) >= VillageLayout.RiverHalfWidth) { bestEta = eta; best = at; found = true; }
+                        break;
+                    }
+                    walked += len;
+                }
+            }
+            if (found) return best;
+            float bd = NudgeRange - 0.2f;
+            foreach (var n in Nav.nodes)
+                foreach (var l in n.links)
+                {
+                    if (l < n.id) continue;
+                    float d = Vec2.DistanceToSegment(p.pos, n.pos, Nav.Node(l).pos, out float u);
+                    var at = Vec2.Lerp(n.pos, Nav.Node(l).pos, u);
+                    if (d < bd && VillageLayout.DistanceToRiver(at) >= VillageLayout.RiverHalfWidth) { bd = d; best = at; found = true; }
+                }
+            if (found) return best;
+            Citizen near = null; float nd = float.MaxValue;
+            foreach (var c in Citizens) if (IsAwakeOutside(c)) { float d = Vec2.Distance(PositionNow(c), p.pos); if (d < nd) { nd = d; near = c; } }
+            var dir = near != null ? (PositionNow(near) - p.pos).Normalized : new Vec2(1, 0);
+            return p.pos + dir * Math.Min(3f, NudgeRange - 0.5f);
         }
     }
 }

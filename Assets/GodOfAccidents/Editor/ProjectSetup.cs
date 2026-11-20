@@ -88,6 +88,12 @@ namespace GOA.EditorTools
             // JavaScript if a host or proxy ever drops that header, so the game still starts, just a little slower.
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
             PlayerSettings.WebGL.decompressionFallback = true;
+            // full-window, resizable page with a themed loader (Assets/WebGLTemplates/GodOfAccidents)
+            PlayerSettings.WebGL.template = "PROJECT:GodOfAccidents";
+            // URP needs more than the 96 MB default: start at 256 MB and let the heap grow
+            SetWebGLProp("initialMemorySize", 256);
+            SetWebGLProp("maximumMemorySize", 2048);
+            SetWebGLProp("memoryGrowthMode", "Geometric");
             // Keep the Emscripten link inside this machine's memory: smaller IL2CPP output and a cheaper optimiser pass.
             PlayerSettings.SetManagedStrippingLevel(UnityEditor.Build.NamedBuildTarget.WebGL, ManagedStrippingLevel.Medium);
             PlayerSettings.stripEngineCode = true;
@@ -100,6 +106,15 @@ namespace GOA.EditorTools
             var report = BuildPipeline.BuildPlayer(opts);
             Debug.Log("[GOA] Web build: " + report.summary.result + " " + report.summary.totalSize / (1024 * 1024) + " MB");
             if (Application.isBatchMode) EditorApplication.Exit(report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded ? 0 : 1);
+        }
+
+        static void SetWebGLProp(string name, object value)
+        {
+            var p = typeof(PlayerSettings.WebGL).GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (p == null) { Debug.LogWarning("[GOA] PlayerSettings.WebGL." + name + " not found"); return; }
+            var v = p.PropertyType.IsEnum ? System.Enum.Parse(p.PropertyType, value.ToString()) : System.Convert.ChangeType(value, p.PropertyType);
+            p.SetValue(null, v);
+            Debug.Log("[GOA] PlayerSettings.WebGL." + name + " = " + v);
         }
 
         [MenuItem("God of Accidents/Build Windows")]

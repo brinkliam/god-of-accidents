@@ -36,6 +36,8 @@ namespace GOA.Game
         public int InsightTokens;
         public bool BonusUnlocked;
         public SimEvent ReplayEvent { get; private set; }
+        /// <summary>Runs work that re-simulates history behind a short overlay (set by the UI).</summary>
+        public Action<string, Action> RunHeavy = (m, a) => a();
 
         public event Action<SimEvent> OnEvent;
         public event Action<SimEvent> OnTurningPoint;
@@ -45,6 +47,9 @@ namespace GOA.Game
         public event Action<ChallengeStatus> OnChallengeResolved;
         public event Action<Counterfactual.Glimpse, PlayerInput, Vector3> OnGlimpse;
         public event Action<PowerResult, PlayerInput> OnActed;
+        /// <summary>A new link in a chain the player started (it has player roots and a cause).</summary>
+        public event Action<SimEvent> OnChainLink;
+        float _slowMo;
 
         World _menuWorld;
         World _replayWorld;
@@ -139,10 +144,17 @@ namespace GOA.Game
 
             float speed = Mode == SessionMode.Menu ? 240 : Speeds[SpeedIndex];
             if (Mode == SessionMode.Replay) speed = SpeedIndex == 0 ? 0 : 120 * Mathf.Max(1, SpeedIndex);
+            if (Mode == SessionMode.Playing && _slowMo > 0)
+            {
+                // slow-motion while one of your chain reactions unfolds
+                _slowMo -= dt;
+                if (!GameSettings.ReduceMotion) speed *= Mathf.Lerp(1f, 0.3f, Mathf.Clamp01(_slowMo / 0.35f));
+            }
             DisplayTime += dt * speed;
+            Rig.Frozen = Mode != SessionMode.Menu && (speed <= 0 || _modal);
 
             if (Mode == SessionMode.Replay) StepReplay();
-            else w.AdvanceTo((long)DisplayTime);
+            else AdvanceBudgeted(w);
 
             View.ShowOpportunities = Mode == SessionMode.Playing && !_modal && GameSettings.Hints;
             View.Tick(DisplayTime, dt, speed, Rig.Cam);
@@ -151,14 +163,33 @@ namespace GOA.Game
             if (Mode == SessionMode.Playing)
             {
                 _challengeCheck -= dt;
-                if (_challengeCheck <= 0 && Timeline.Scenario.isChallenge)
+                if (_challengeCheck <= 0)
                 {
-                    _challengeCheck = 0.4f;
+                    _challengeCheck = Timeline.Scenario.isChallenge ? 0.4f : 1f;
                     Challenge = Challenges.Evaluate(Timeline.World);
-                    if (Challenge.state == ChallengeState.Won || Challenge.state == ChallengeState.Failed) ResolveChallenge();
+                    if (Timeline.Scenario.isChallenge && (Challenge.state == ChallengeState.Won || Challenge.state == ChallengeState.Failed)) ResolveChallenge();
                 }
                 _autosave -= dt;
                 if (_autosave <= 0) { _autosave = 60; Save(); }
+            }
+        }
+
+        readonly System.Diagnostics.Stopwatch _simClock = new System.Diagnostics.Stopwatch();
+
+        /// <summary>
+        /// Advance the world toward the displayed time in slices, stopping when this frame's budget is spent.
+        /// At the top speeds a busy stretch of history then slows time for a moment instead of freezing the frame.
+        /// </summary>
+        void AdvanceBudgeted(World w)
+        {
+            long target = (long)DisplayTime;
+            if (target <= w.Time) { w.AdvanceTo(target); return; }
+            float budgetMs = Application.platform == RuntimePlatform.WebGLPlayer ? 9f : 12f;
+            _simClock.Restart();
+            while (w.Time < target)
+            {
+                w.AdvanceTo(Math.Min(target, w.Time + 6 * SimTime.Hour));
+                if (_simClock.Elapsed.TotalMilliseconds > budgetMs && w.Time < target) { DisplayTime = w.Time; break; }
             }
         }
 
@@ -210,9 +241,12 @@ namespace GOA.Game
                 var pre = Timeline.World.Validate(input);
                 if (!pre.ok) { Toast(pre.message); return pre; }
                 GlimpseArmed = false;
-                var g = Counterfactual.Foresee(Timeline, input, 2 * SimTime.Year);
-                SetModal(true);
-                OnGlimpse?.Invoke(g, input, at);
+                RunHeavy("Glimpsing two years ahead...", () =>
+                {
+                    var g = Counterfactual.Foresee(Timeline, input, 2 * SimTime.Year);
+                    SetModal(true);
+                    OnGlimpse?.Invoke(g, input, at);
+                });
                 return new PowerResult { ok = true, message = "glimpse" };
             }
             return ActNow(input);
@@ -225,6 +259,7 @@ namespace GOA.Game
             else
             {
                 Services.Analytics.Track("power_used", ("power", input.power.ToString()), ("year", SimTime.Year1(Timeline.World.Time).ToString()));
+                Rig.Shake(input.power == PowerType.Gust ? 0.9f : 0.5f, 0.3f);
                 Services.Ads.NotifyGameplay();
             }
             OnActed?.Invoke(r, input);
@@ -244,10 +279,17 @@ namespace GOA.Game
         {
             OnEvent?.Invoke(e);
             if (View) View.OnSimEvent(e);
+            if (Mode == SessionMode.Playing && (e.type == SimEventType.FireStarted || e.type == SimEventType.BuildingDestroyed || e.type == SimEventType.CartRoll) && e.hasPos && Vector3.Distance(Rig.Target, TerrainBuilder.Ground(e.pos)) < 90) Rig.Shake(1.1f, 0.5f);
             if (Mode != SessionMode.Playing && Mode != SessionMode.Replay) return;
             var cx = Codex.Consider(e);
             if (cx.HasValue) { OnCodex?.Invoke(cx.Value); Services.Analytics.Track("codex_unlock", ("entry", cx.Value.id)); }
             bool chained = e.roots.Length > 0;
+            if (chained && e.causes.Length > 0 && Mode == SessionMode.Playing)
+            {
+                if (e.magnitude >= 2 && SpeedIndex <= 2) _slowMo = 1.3f;
+                Rig.Shake(0.25f + 0.2f * e.magnitude, 0.3f);
+                OnChainLink?.Invoke(e);
+            }
             bool big = e.magnitude >= 4 || (e.turningPoint && chained);
             if (big && Mode == SessionMode.Playing)
             {

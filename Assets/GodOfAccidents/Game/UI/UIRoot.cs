@@ -26,6 +26,8 @@ namespace GOA.Game
         Label _floatName;
         Button _energyAdBtn, _glimpseBtn;
         float _hudTick, _inspectorTick;
+        int _goalsDone = -1;
+        readonly HashSet<string> _goalsSeen = new HashSet<string>();
         PickResult _inspecting;
         SimEvent _inspectEvent;
         LineRenderer _trail;
@@ -53,18 +55,23 @@ namespace GOA.Game
             _menu = Layer("menu");
             _overlay = Layer("overlay");
             _bannerLayer = Layer("banner");
-            _toasts = Layer("toasts");
+            _toasts = Layer("toasts"); _toasts.AddToClassList("toasts");
             _modal = Layer("modal");
             _adLayer = Layer("ads");
+
+            // any press that lands on a UI element belongs to the UI, never to the world behind it
+            _root.RegisterCallback<PointerDownEvent>(e => { if (e.target != _root && !IsLayer(e.target as VisualElement)) _uiDownFrame = Time.frameCount; }, TrickleDown.TrickleDown);
 
             BuildHud();
             BuildMenu();
             BuildTrail();
+            BuildChainCard();
 
             S.OnToast += Toast;
+            S.RunHeavy = Veil;
             S.OnEvent += OnSimEvent;
             S.OnTurningPoint += Banner;
-            S.OnCodex += e => { SmallBanner("CODEX ENTRY", e.title, e.blurb); Audio?.Ui("codex"); };
+            S.OnCodex += e => { SmallBanner("NEW CODEX ENTRY UNLOCKED", e.title, e.blurb, null, "banner-codex"); Audio?.Ui("codex"); Audio?.Ui("begin"); };
             S.OnChallengeResolved += ShowResults;
             S.OnGlimpse += ShowGlimpse;
             S.OnWorldChanged += WorldChanged;
@@ -85,6 +92,11 @@ namespace GOA.Game
             _root.Add(v);
             return v;
         }
+
+        int _uiDownFrame = -100;
+        bool IsLayer(VisualElement v) => v != null && v.parent == _root && v.ClassListContains("layer");
+        /// <summary>True for a few frames after a press began on a UI element (so its release can't select the world).</summary>
+        public bool PressBeganOnUI => Time.frameCount - _uiDownFrame <= 2;
 
         public bool IsOverUI(Vector2 screen)
         {
@@ -159,7 +171,8 @@ namespace GOA.Game
             {
                 var w = S.World;
                 foreach (var id in w.Chronicle.Skip(Math.Max(0, w.Chronicle.Count - 7))) AddChronicle(w.Ledger.Get(id));
-                Show(_objective, S.Timeline.Scenario.isChallenge);
+                Show(_objective, S.Timeline.Scenario.isChallenge || S.Timeline.Scenario.id == "sandbox");
+                _goalsDone = -1; _goalsSeen.Clear();
                 if (!GameSettings.TutorialDone && S.Mode == SessionMode.Playing) Tutorial();
             }
             Show(_replayBar, S.InReplay);
@@ -173,6 +186,9 @@ namespace GOA.Game
         {
             if (S == null) return;
             TickFades();
+            TickChainCard();
+            UpdateLayoutMode();
+            TickVeil();
             if (_adTick != null && _adTick()) _adTick = null;
             _hudTick -= Time.unscaledDeltaTime;
             if (_hudTick <= 0 && S.Mode != SessionMode.Menu) { _hudTick = 0.15f; RefreshHud(); }
@@ -231,11 +247,12 @@ namespace GOA.Game
             Audio?.TurningPoint(yours);
         }
 
-        void SmallBanner(string kicker, string title, string detail, SimEvent e = null)
+        void SmallBanner(string kicker, string title, string detail, SimEvent e = null, string extraClass = null)
         {
             _bannerEl?.RemoveFromHierarchy();
             var b = new VisualElement { pickingMode = PickingMode.Ignore };
             b.AddToClassList("banner");
+            if (extraClass != null) b.AddToClassList(extraClass);
             b.Add(L(kicker, "banner-kicker"));
             b.Add(L(title, "banner-title"));
             if (!string.IsNullOrEmpty(detail)) b.Add(L(detail, "banner-detail"));
@@ -248,6 +265,7 @@ namespace GOA.Game
             foreach (var ch in b.Children()) if (!(ch is Button)) ch.pickingMode = PickingMode.Ignore;
             _bannerLayer.Add(b);
             _bannerEl = b;
+            PopIn(b, 0.45f);
             FadeOutAndRemove(b, 5200, 900, () => { if (_bannerEl == b) _bannerEl = null; });
         }
 
@@ -307,7 +325,8 @@ namespace GOA.Game
             row.RegisterCallback<ClickEvent>(_ => { Audio?.Ui("click"); ShowEvent(e); });
             _chronicleList.Insert(0, row);
             Show(_chronicle, true);
-            while (_chronicleList.childCount > 5) _chronicleList.RemoveAt(_chronicleList.childCount - 1);
+            int maxRows = _root.ClassListContains("portrait") ? 3 : _root.ClassListContains("compact") ? 4 : 5;
+            while (_chronicleList.childCount > maxRows) _chronicleList.RemoveAt(_chronicleList.childCount - 1);
         }
 
         // ------------------------------------------------------------------ in-world chain trail
