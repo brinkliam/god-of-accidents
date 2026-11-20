@@ -109,12 +109,30 @@ namespace GOA.Sim
 
         // ------------------------------------------------------------------ people
 
+
+        /// <summary>
+        /// No two living villagers share a first name (the Chronicle reads better and nobody is confused). If the name is
+        /// taken, walk the name list from a stable offset and take the first free one. Deterministic: no random draws.
+        /// </summary>
+        string UniqueFirstName(string wanted, bool female)
+        {
+            bool Taken(string n) { foreach (var c in Citizens) if (c.IsActive && c.firstName == n) return true; return false; }
+            if (!Taken(wanted)) return wanted;
+            var list = female ? NameBank.Female : NameBank.Male;
+            int start = (int)(Rand.Hash(Seed, wanted.Length, Citizens.Count, 0, (int)Salt.Birth + 11) % (ulong)list.Length);
+            for (int i = 0; i < list.Length; i++)
+            {
+                var n = list[(start + i) % list.Length];
+                if (!Taken(n)) return n;
+            }
+            return wanted; // the list is exhausted: allow a repeat rather than fail
+        }
         Citizen NewCitizen(string first, string family, bool female, int ageYears, Occupation occ, Trait traits, int home, SeqRandom rng)
         {
             var c = new Citizen
             {
                 id = Citizens.Count,
-                firstName = first,
+                firstName = UniqueFirstName(first, female),
                 familyName = family,
                 female = female,
                 birthTime = StartTime - (long)ageYears * SimTime.Year - rng.Range(0, SimTime.DaysPerYear) * SimTime.Day,

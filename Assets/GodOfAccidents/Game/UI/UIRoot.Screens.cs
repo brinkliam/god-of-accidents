@@ -34,6 +34,7 @@ namespace GOA.Game
         VisualElement Modal(string title, out VisualElement body, Action onClose = null, float width = 620)
         {
             S.SetModal(true);
+            Show(_hud, false); // nothing of the HUD shows faintly behind a dimmed dialog
             var dim = new VisualElement(); dim.AddToClassList("screen"); dim.AddToClassList("dim");
             var m = Panel("modal");
             m.style.width = width;
@@ -53,13 +54,14 @@ namespace GOA.Game
         void CloseModal(VisualElement dim)
         {
             dim.RemoveFromHierarchy();
-            if (_modal.childCount == 0) S.SetModal(false);
+            if (_modal.childCount == 0) { S.SetModal(false); RestoreHud(); }
         }
 
         void CloseAllModals()
         {
             _modal.Clear();
             S.SetModal(false);
+            RestoreHud();
         }
 
         void ShowNewWorld()
@@ -119,7 +121,7 @@ namespace GOA.Game
                 b.Add(L("· Things dropped on the ground are found by whoever notices them first. Curious people notice more.", "tiny"));
             }
             else b.Add(L("· One act only. Think about who will be where, and what they're carrying.", "tiny"));
-            b.Add(Btn("Begin", () => CloseModal(dim), "btn-primary"));
+            b.Add(Btn("Begin", () => { CloseModal(dim); if (sc.id == "forgotten_genius") GuideToWren(); }, "btn-primary"));
         }
 
         // ------------------------------------------------------------------ settings, consent, pause
@@ -328,7 +330,7 @@ namespace GOA.Game
         void CloseTimeline()
         {
             _timelineOpen = false;
-            Show(_hud, true);
+            RestoreHud();
             _overlay.Clear();
             S.SetModal(false);
         }

@@ -71,7 +71,7 @@ namespace GOA.Game
             S.RunHeavy = Veil;
             S.OnEvent += OnSimEvent;
             S.OnTurningPoint += Banner;
-            S.OnCodex += e => { SmallBanner("NEW CODEX ENTRY UNLOCKED", e.title, e.blurb, null, "banner-codex"); Audio?.Ui("codex"); Audio?.Ui("begin"); };
+            S.OnCodex += CodexReveal;
             S.OnChallengeResolved += ShowResults;
             S.OnGlimpse += ShowGlimpse;
             S.OnWorldChanged += WorldChanged;
@@ -187,8 +187,10 @@ namespace GOA.Game
             if (S == null) return;
             TickFades();
             TickChainCard();
+            TickShimmer();
             UpdateLayoutMode();
             TickVeil();
+            TickSnapLabel();
             if (_adTick != null && _adTick()) _adTick = null;
             _hudTick -= Time.unscaledDeltaTime;
             if (_hudTick <= 0 && S.Mode != SessionMode.Menu) { _hudTick = 0.15f; RefreshHud(); }

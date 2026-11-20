@@ -56,6 +56,7 @@ namespace GOA.Game
             // ---------- objective
             var leftCol = new VisualElement { pickingMode = PickingMode.Ignore };
             leftCol.AddToClassList("leftcol");
+            leftCol.Add(BuildDrawerTabs());
             _hud.Add(leftCol);
             _objective = Panel("objective");
             _objHead = L("", "small");
@@ -64,7 +65,9 @@ namespace GOA.Game
             _objective.Add(objTitle);
             _objective.Add(_objHead);
             _objective.Add(_objSteps);
-            leftCol.Add(_objective);
+            var goalsPane = new VisualElement { pickingMode = PickingMode.Ignore }; goalsPane.AddToClassList("pane-goals");
+            goalsPane.Add(_objective);
+            leftCol.Add(goalsPane);
 
             // ---------- power bar
             var bar = new VisualElement(); bar.AddToClassList("powerbar"); bar.pickingMode = PickingMode.Ignore;
@@ -112,7 +115,9 @@ namespace GOA.Game
             _chronicle.Add(L("CHRONICLE", "h2"));
             _chronicleList = new VisualElement();
             _chronicle.Add(_chronicleList);
-            leftCol.Add(_chronicle);
+            var chronPane = new VisualElement { pickingMode = PickingMode.Ignore }; chronPane.AddToClassList("pane-chron");
+            chronPane.Add(_chronicle);
+            leftCol.Add(chronPane);
 
             // ---------- inspector
             _inspector = Panel("inspector");
@@ -162,8 +167,10 @@ namespace GOA.Game
             var atmo = S.View != null ? S.View.Atmosphere : null;
             _weather.text = (atmo != null && !string.IsNullOrEmpty(atmo.WeatherLabel) ? atmo.WeatherLabel : w.Weather.ToString()) + (w.WindStrength > 0.7f ? " · windy" : "");
             _pop.text = $"{w.Population} souls";
-            _food.text = $"Food {w.DaysOfFood:0} days" + (w.FoodPrice > 2 ? " · bread dear" : "");
-            _prosperity.text = $"Prosperity {(int)(w.Prosperity * 100)}%";
+            _food.parent.tooltip = $"{w.DaysOfFood:0} days of food in store" + (w.FoodPrice > 2 ? $", bread at {w.FoodPrice:0.0}x its usual price" : "");
+            _prosperity.parent.tooltip = "Prosperity of the vale";
+            _food.text = $"Food {w.DaysOfFood:0}d" + (w.FoodPrice > 2 ? " · dear" : "");
+            _prosperity.text = $"Wealth {(int)(w.Prosperity * 100)}%";
             foreach (var (b, idx) in _speedButtons) b.EnableInClassList("btn-on", idx == S.SpeedIndex);
             _speedName.text = GameSession.SpeedNames[S.SpeedIndex];
             RefreshPowers();

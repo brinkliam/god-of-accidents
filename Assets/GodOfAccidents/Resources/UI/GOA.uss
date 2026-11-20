@@ -205,3 +205,41 @@ Label { color: rgb(248, 242, 228); font-size: 15px; white-space: normal; }
 .portrait .clock { font-size: 13px; }
 .portrait .era { font-size: 11px; }
 .portrait .topbar { left: 6px; right: 6px; top: 6px; }
+.snap-label { position: absolute; width: 220px; -unity-text-align: middle-center; font-size: 15px; -unity-font-style: bold; color: rgb(255, 238, 200);
+    background-color: rgba(22, 18, 30, 0.82); border-radius: 12px; padding: 3px 10px; border-width: 1px; border-color: rgba(242, 196, 109, 0.7); }
+
+/* small screens: Goals and Chronicle share a drawer with tabs (never stacked over each other or the energy panel) */
+.drawer-tabs { display: none; flex-direction: row; margin-bottom: 4px; }
+.drawer-tab { min-height: 44px; padding: 4px 14px; font-size: 14px; background-color: rgba(22, 18, 30, 0.8); }
+.compact .drawer-tabs { display: flex; }
+.compact .drawer-goals .pane-chron { display: none; }
+.compact .drawer-chron .pane-goals { display: none; }
+.compact .drawer-closed .pane-goals { display: none; }
+.compact .drawer-closed .pane-chron { display: none; }
+.compact .chips-open .leftcol { display: none; }
+.compact .leftcol { max-height: 46%; overflow: hidden; }
+.compact .chronicle { max-height: none; }
+.portrait .leftcol { top: 70px; width: 70%; }
+
+/* HUD pills: never wrap or clip */
+.chip { flex-shrink: 0; }
+.chip Label { white-space: nowrap; }
+.chips { flex-shrink: 1; overflow: hidden; }
+
+/* the dramatic moment: cinematic bars */
+.letterbox { position: absolute; left: 0; right: 0; height: 0; background-color: rgb(4, 4, 8); }
+.letterbox-top { top: 0; }
+.letterbox-bottom { bottom: 0; }
+
+/* codex discovered: the reveal */
+.codex-reveal { position: absolute; left: 0; right: 0; top: 16%; align-items: center; }
+.codex-halo { position: absolute; width: 640px; height: 300px; top: -40px; border-radius: 320px; background-color: rgba(255, 196, 90, 0.16); }
+.codex-card {
+    width: 560px; max-width: 92%; padding: 18px 26px; align-items: center; overflow: hidden;
+    background-color: rgba(36, 26, 12, 0.94); border-width: 2px; border-radius: 18px; border-color: rgb(255, 214, 140);
+}
+.codex-kicker { font-size: 13px; letter-spacing: 6px; color: rgb(255, 214, 140); -unity-text-align: middle-center; }
+.codex-title { font-size: 36px; -unity-font-style: bold; color: rgb(255, 236, 190); -unity-text-align: middle-center; margin-top: 6px; text-shadow: 0 0 20px rgba(255, 180, 70, 0.9); }
+.codex-blurb { font-size: 16px; color: rgba(250, 238, 214, 0.95); -unity-text-align: middle-center; margin-top: 6px; -unity-font-style: italic; }
+.codex-shimmer { position: absolute; top: 0; bottom: 0; width: 22%; background-color: rgba(255, 240, 200, 0.22); rotate: 14deg; opacity: 0; }
+.portrait .codex-title { font-size: 28px; }

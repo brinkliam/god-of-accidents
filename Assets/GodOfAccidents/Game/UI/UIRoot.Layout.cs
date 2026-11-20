@@ -63,5 +63,69 @@ namespace GOA.Game
             try { w(); }
             finally { _veil?.RemoveFromHierarchy(); _veil = null; }
         }
+
+        // ------------------------------------------------------------------ snapped-target label
+
+        Label _snapLabel;
+
+        /// <summary>Names the villager or spot a tap would hit before the player confirms it.</summary>
+        void TickSnapLabel()
+        {
+            if (_snapLabel == null)
+            {
+                _snapLabel = L("", "snap-label");
+                _snapLabel.pickingMode = PickingMode.Ignore;
+                _floating.Add(_snapLabel);
+            }
+            bool show = PC != null && PC.HasSnap && S.Mode == SessionMode.Playing && Rig != null && Rig.Cam != null;
+            Show(_snapLabel, show);
+            if (!show) return;
+            var sp = Rig.Cam.WorldToScreenPoint(PC.SnapWorld + Vector3.up * 3.2f);
+            if (sp.z < 0) { Show(_snapLabel, false); return; }
+            var p = RuntimePanelUtils.ScreenToPanel(_root.panel, new Vector2(sp.x, Screen.height - sp.y));
+            _snapLabel.text = PC.SnapLabel;
+            _snapLabel.style.left = p.x - 110;
+            _snapLabel.style.top = p.y - 28;
+        }
+
+        void RestoreHud() => Show(_hud, S != null && S.Mode != SessionMode.Menu && !_timelineOpen && _modal.childCount == 0);
+
+        // ------------------------------------------------------------------ small-screen drawer for the side panels
+
+        Button _tabGoals, _tabChron;
+
+        /// <summary>On compact screens Goals and Chronicle share one drawer with tabs; tapping the open tab tucks it away.</summary>
+        VisualElement BuildDrawerTabs()
+        {
+            var tabs = new VisualElement();
+            tabs.AddToClassList("drawer-tabs");
+            _tabGoals = Btn("Goals", () => SetDrawer("drawer-goals"), "drawer-tab");
+            _tabChron = Btn("Chronicle", () => SetDrawer("drawer-chron"), "drawer-tab");
+            tabs.Add(_tabGoals); tabs.Add(_tabChron);
+            SetDrawer("drawer-goals");
+            return tabs;
+        }
+
+        void SetDrawer(string mode)
+        {
+            bool closing = _hud.ClassListContains(mode);
+            _hud.RemoveFromClassList("drawer-goals"); _hud.RemoveFromClassList("drawer-chron"); _hud.RemoveFromClassList("drawer-closed");
+            _hud.AddToClassList(closing ? "drawer-closed" : mode);
+            _tabGoals?.EnableInClassList("btn-on", !closing && mode == "drawer-goals");
+            _tabChron?.EnableInClassList("btn-on", !closing && mode == "drawer-chron");
+        }
+
+        /// <summary>Forgotten Genius opening: fly to Wren, open her card, and say what to watch for.</summary>
+        void GuideToWren()
+        {
+            var w = S.World;
+            var wren = w?.FindCitizen("Wren Ashdown");
+            if (wren == null) return;
+            var at = S.View.PositionOf(PickKind.Citizen, wren.id, S.DisplayTime);
+            Rig.FocusOn(at, 32, GameSettings.ReduceMotion ? 0.01f : 1.8f);
+            Rig.Follow = () => S.View.PositionOf(PickKind.Citizen, wren.id, S.DisplayTime);
+            Inspect(new PickResult { kind = PickKind.Citizen, id = wren.id, point = at });
+            Toast("This is Wren. Watch her day - when old Ambrose walks by in the afternoon, a violet marker will show you the moment.");
+        }
     }
 }

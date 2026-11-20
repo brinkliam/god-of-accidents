@@ -24,6 +24,7 @@ namespace GOA.Game
         Vignette _vig;
         Vector4 _grade = new Vector4(6, 22, 16, -0.1f); // temperature, saturation, contrast, exposure
         Color _filter = Color.white;
+        float _dramaPulse;
 
         void Awake()
         {
@@ -89,6 +90,7 @@ namespace GOA.Game
                 ps.match = 0.5f;
             }
             Session.StartMenu();
+            Session.OnDrama += _ => _dramaPulse = 1f;
             UI.Init(Session, pc, Rig, Services, audio, ps);
             Rig.IsOverUI = UI.IsOverUI;
             Rig.GestureCaptured = () => pc.Captured;
@@ -154,6 +156,9 @@ namespace GOA.Game
                 default: g = new Vector4(-9, 8, 17, -0.08f); f = new Color(0.93f, 0.98f, 1.06f); break;
             }
             g += new Vector4(20, 14, 4, 0.05f) * golden;             // golden hour glows
+            // high sun washes colour out: push saturation and contrast and pull exposure down around midday
+            float noon = (1 - night) * Mathf.Clamp01((sun - 22f) / 28f);
+            g += new Vector4(-2, 14, 12, -0.18f) * noon;
             g += new Vector4(-26, -18, 6, -0.25f) * night;           // moonlit blue
             f = Color.Lerp(f, new Color(0.82f, 0.9f, 1.12f), night * 0.6f);
             float k = 1 - Mathf.Exp(-Time.unscaledDeltaTime * 1.5f);
@@ -164,7 +169,8 @@ namespace GOA.Game
             _ca.contrast.value = _grade.z;
             _ca.postExposure.value = _grade.w;
             _ca.colorFilter.Override(_filter);
-            if (_vig != null) _vig.intensity.value = 0.22f + night * 0.12f;
+            _dramaPulse = Mathf.MoveTowards(_dramaPulse, 0, Time.unscaledDeltaTime * 0.4f);
+            if (_vig != null) _vig.intensity.value = 0.22f + night * 0.12f + _dramaPulse * 0.2f;
         }
 
         public static void ApplyQuality()

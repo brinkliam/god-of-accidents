@@ -194,8 +194,10 @@ namespace GOA.Sim
             if (houses.Count == 0) return;
             var h = houses[Rand.Range(0, houses.Count, Seed, day, slot, 7, (int)Salt.Ambient)];
             var e = Record(SimEventType.Mishap, $"Sparks fly from the chimney of {h.name}", "A log shifts in the hearth and a gout of sparks rides the smoke up and out.", 2, null, null, h.pos);
-            // most sparks die on the thatch; a dry, windy day gives them a chance
-            double p = 0.25 + WindStrength * 0.35;
+            // most sparks die on the thatch. Never in the first days of a world and rare after: a village should not
+            // burn down on its own. A windy day raises the odds a little.
+            if (day < 3) return;
+            double p = 0.04 + WindStrength * 0.08;
             if (Rand.Chance(p, Seed, day, slot, 8, (int)Salt.Ambient)) StartFire(h, C(e.id), "A hearth spark has caught the thatch.");
         }
 
@@ -299,6 +301,16 @@ namespace GOA.Sim
                         break;
                     }
                 }
+            }
+            // the Forgotten Genius: the one moment that matters most gets the strongest marker
+            if (Scenario.id == "forgotten_genius" && InterventionCount < Math.Max(1, Scenario.maxInterventions))
+            {
+                var wren = FindCitizen("Wren Ashdown");
+                if (wren != null && IsAwakeOutside(wren))
+                    foreach (var c in Citizens)
+                        if (c.occupation == Occupation.Tinkerer && IsAwakeOutside(c) && c.activity.kind != ActivityKind.Distracted
+                            && Vec2.Distance(PositionNow(c), PositionNow(wren)) < 30f)
+                            list.Add(new Opportunity { pos = PositionNow(c), power = PowerType.Distract, targetId = c.id, hint = $"Distract {c.firstName} now - Wren is playing nearby", heat = 1.2f });
             }
             list.Sort((x, y) => y.heat.CompareTo(x.heat));
             var seen = new HashSet<long>();

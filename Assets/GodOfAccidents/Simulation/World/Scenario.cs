@@ -135,7 +135,20 @@ namespace GOA.Sim
             bool mentor = false;
             foreach (var r in wren.relations.Values) if (r.kind == RelationKind.Mentor) mentor = true;
             bool trade = wren.occupation == Occupation.Tinkerer || wren.occupation == Occupation.Scholar;
+            // an early, reachable first step: anything the player does that reaches Wren counts
+            bool touched = false;
+            foreach (var e in w.Ledger.Events)
+                if (e.roots.Length > 0 && Array.IndexOf(e.actors, wren.id) >= 0) { touched = true; break; }
+            s.steps.Add(("Catch Wren's eye with something new", touched || spark));
             s.steps.Add(("Wren feels a spark of wonder", spark));
+            string guide = null;
+            if (!spark && w.InterventionCount < w.Scenario.maxInterventions)
+            {
+                double h = SimTime.HourOfDay(w.Time);
+                guide = h < 15 ? $"Ambrose the tinkerer passes the green around 15:00 (in {15 - h:0.0} h). Be ready to Distract him near Wren."
+                           : h < 17 ? "Ambrose is out walking now. Watch for the violet marker near Wren."
+                           : "Tomorrow afternoon, Ambrose walks past the green again.";
+            }
             s.steps.Add(("Someone takes her seriously (an apprenticeship, a calling)", mentor || trade));
             s.steps.Add(($"Wren masters her craft (craft {wren.craft:0}, lore {wren.lore:0})", wren.craft >= 42 || wren.lore >= 38));
             SimEvent win = null;
@@ -153,7 +166,7 @@ namespace GOA.Sim
             }
             if (!wren.IsActive) { s.state = ChallengeState.Failed; s.headline = wren.alive ? "Wren has left the vale." : "Wren's story ended too soon."; return; }
             if (SimTime.Year1(w.Time) >= w.Scenario.deadlineYear) { s.state = ChallengeState.Failed; s.headline = "Twenty years pass. Wren never builds a thing."; return; }
-            s.headline = $"Year {SimTime.Year1(w.Time)} of 20 - interventions used {w.InterventionCount}/{w.Scenario.maxInterventions}";
+            s.headline = (guide != null ? guide + "\n" : "") + $"Year {SimTime.Year1(w.Time)} of 20 - interventions used {w.InterventionCount}/{w.Scenario.maxInterventions}";
         }
 
         static void OnePebble(World w, ChallengeStatus s)

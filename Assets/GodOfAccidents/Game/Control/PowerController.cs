@@ -160,10 +160,13 @@ namespace GOA.Game
                 if (kb.digit4Key.wasPressedThisFrame) Select(PowerType.Drop);
                 if (kb.escapeKey.wasPressedThisFrame && Active.HasValue) Select(null);
             }
-            if (!PointerState(out var pos, out bool down, out bool held, out bool up)) return;
+            if (!PointerState(out var pos, out bool down, out bool held, out bool up)) { HasSnap = false; return; }
             var cam = Rig.Cam;
             double t = Session.DisplayTime;
             UpdateHover(cam, pos, t);
+            // on touch there is no hover: the snapped target shows while the finger is down
+            bool touch = Touchscreen.current != null && Touchscreen.current.primaryTouch.press.isPressed;
+            UpdateSnap(cam, pos, !touch || held);
 
             if (down)
             {
@@ -193,7 +196,7 @@ namespace GOA.Game
 
             if (_pressed && up)
             {
-                bool tap = Vector2.Distance(pos, _downScreen) < 14;
+                bool tap = Vector2.Distance(pos, _downScreen) < Px(16);
                 Release(cam, pos, tap, t);
                 Cancel();
             }
@@ -201,6 +204,8 @@ namespace GOA.Game
 
         void UpdateHover(Camera cam, Vector2 pos, double t)
         {
+            if (Active == PowerType.Distract || Active == PowerType.Drop) return; // snapped targeting draws the ring
+            _hoverMat.SetColor("_Color", new Color(0.6f, 1.1f, 1.6f));
             if (IsOverUI(pos) || _pressed) { _hover.gameObject.SetActive(false); return; }
             var pick = View.Pick(cam, pos, t, Active == PowerType.Nudge, Px(56));
             bool valid = pick.kind == PickKind.Citizen && (Active == null || Active == PowerType.Distract)
@@ -216,6 +221,55 @@ namespace GOA.Game
             }
         }
 
+
+        // ------------------------------------------------------------------ snapped targeting (Distract, Drop)
+
+        /// <summary>The target a tap would hit right now, shown before confirming.</summary>
+        public bool HasSnap { get; private set; }
+        public Vector3 SnapWorld { get; private set; }
+        public string SnapLabel { get; private set; } = "";
+        int _snapId = -1;
+        Vector3 _snapAt;
+
+        bool SnapTarget(Camera cam, Vector2 pos, out int id, out Vector3 at, out string label)
+        {
+            var w = View.World;
+            id = -1; at = default; label = "";
+            if (Active == PowerType.Distract)
+            {
+                if (!View.SnapCitizen(cam, pos, Px(110), c => w.IsAwakeOutside(c) && c.activity.kind != ActivityKind.Distracted, out id, out at)) return false;
+                label = "Distract " + w.GetCitizen(id).Name;
+                return true;
+            }
+            if (Active == PowerType.Drop)
+            {
+                // drop at a villager's feet if one is near the pointer, so they will find it; else on the ground
+                if (View.SnapCitizen(cam, pos, Px(90), c => w.IsAwakeOutside(c), out id, out var feet))
+                {
+                    at = feet + (cam.transform.position - feet).normalized * 1.2f; at.y = feet.y;
+                    label = "Drop beside " + w.GetCitizen(id).firstName;
+                }
+                else if (TerrainBuilder.Raycast(cam.ScreenPointToRay(pos), out at)) label = "Drop here";
+                else return false;
+                if (Vector2.Distance(new Vector2(at.x, at.z), new Vector2(VillageLayout.OakPos.x, VillageLayout.OakPos.z)) > 140) { label = "Too far from the crow's oak"; return true; }
+                return true;
+            }
+            return false;
+        }
+
+        void UpdateSnap(Camera cam, Vector2 pos, bool pointerActive)
+        {
+            HasSnap = false;
+            if (!pointerActive || IsOverUI(pos) || (Active != PowerType.Distract && Active != PowerType.Drop)) { _snapId = -1; return; }
+            if (!SnapTarget(cam, pos, out _snapId, out _snapAt, out var label)) { _snapId = -1; return; }
+            HasSnap = true; SnapWorld = _snapAt; SnapLabel = label;
+            _hover.gameObject.SetActive(true);
+            _hover.position = _snapAt + Vector3.up * 0.1f;
+            float r = Active == PowerType.Drop ? 1.6f : 1.3f;
+            r *= 1 + Mathf.Sin(Time.unscaledTime * 7f) * 0.06f;
+            _hover.localScale = new Vector3(r, 1, r);
+            _hoverMat.SetColor("_Color", Active == PowerType.Distract ? new Color(1.5f, 0.85f, 1.9f) : new Color(1.6f, 1.5f, 1.6f));
+        }
         Vector3 ClampNudge(Prop p, Vector3 world)
         {
             var from = new Vector3(p.pos.x, 0, p.pos.z);
@@ -306,14 +360,14 @@ namespace GOA.Game
                 }
                 case PowerType.Distract:
                 {
-                    var pick = View.Pick(cam, pos, t, false, Px(60));
-                    if (pick.kind != PickKind.Citizen) { OnHint?.Invoke("Tap a villager who is outdoors."); return; }
-                    Session.Act(PlayerInput.DistractCitizen(pick.id), pick.point);
+                    if (!tap) return; // a drag is a camera move, not a choice
+                    if (!SnapTarget(cam, pos, out var cid, out var cat, out _)) { OnHint?.Invoke("Tap near a villager who is outdoors (ringed targets)."); return; }
+                    Session.Act(PlayerInput.DistractCitizen(cid), cat);
                     return;
                 }
                 case PowerType.Drop:
                 {
-                    if (!tap || !TerrainBuilder.Raycast(cam.ScreenPointToRay(pos), out var hit)) return;
+                    if (!tap || !SnapTarget(cam, pos, out _, out var hit, out _)) return;
                     Session.Act(PlayerInput.DropAt(new Vec2(hit.x, hit.z)), hit);
                     return;
                 }

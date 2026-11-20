@@ -49,7 +49,11 @@ namespace GOA.Game
         public event Action<PowerResult, PlayerInput> OnActed;
         /// <summary>A new link in a chain the player started (it has player roots and a cause).</summary>
         public event Action<SimEvent> OnChainLink;
+        /// <summary>A big consequence of the player's chain: the camera swoops in (letterbox, slow motion).</summary>
+        public event Action<SimEvent> OnDrama;
+        float _lastDrama = -100;
         float _slowMo;
+        bool _guideFired;
 
         World _menuWorld;
         World _replayWorld;
@@ -89,6 +93,7 @@ namespace GOA.Game
             Timelines.Add(new Timeline(s, scenario) { Name = "Prime Timeline" });
             ActiveIndex = 0;
             _replayWorld = null;
+            _guideFired = false;
             Mode = SessionMode.Playing;
             Challenge = Challenges.Evaluate(Timeline.World);
             DisplayTime = Timeline.World.Time;
@@ -169,6 +174,7 @@ namespace GOA.Game
                     Challenge = Challenges.Evaluate(Timeline.World);
                     if (Timeline.Scenario.isChallenge && (Challenge.state == ChallengeState.Won || Challenge.state == ChallengeState.Failed)) ResolveChallenge();
                 }
+                GuideMoment();
                 _autosave -= dt;
                 if (_autosave <= 0) { _autosave = 60; Save(); }
             }
@@ -190,6 +196,25 @@ namespace GOA.Game
             {
                 w.AdvanceTo(Math.Min(target, w.Time + 6 * SimTime.Hour));
                 if (_simClock.Elapsed.TotalMilliseconds > budgetMs && w.Time < target) { DisplayTime = w.Time; break; }
+            }
+        }
+
+        /// <summary>
+        /// Forgotten Genius: the first time the key moment arrives (Ambrose passing Wren), slow time, fly the camera
+        /// there and say what to do. Once per world.
+        /// </summary>
+        void GuideMoment()
+        {
+            if (_guideFired || Timeline == null || Timeline.Scenario.id != "forgotten_genius") return;
+            foreach (var o in View.Opportunities)
+            {
+                if (o.heat < 1.1f) continue;
+                _guideFired = true;
+                if (SpeedIndex > 1) SpeedIndex = 1;
+                _slowMo = 2f;
+                Rig.FocusOn(TerrainBuilder.Ground(o.pos), 30, GameSettings.ReduceMotion ? 0.01f : 1.4f);
+                Toast("Now! " + o.hint + ". Choose Distract and tap him.");
+                break;
             }
         }
 
@@ -288,6 +313,15 @@ namespace GOA.Game
             {
                 if (e.magnitude >= 2 && SpeedIndex <= 2) _slowMo = 1.3f;
                 Rig.Shake(0.25f + 0.2f * e.magnitude, 0.3f);
+                if (e.magnitude >= 3 && e.hasPos && GameSettings.Cinematics && Time.unscaledTime - _lastDrama > 12f)
+                {
+                    // the dramatic moment: a low swoop onto the consequence, in slow motion
+                    _lastDrama = _lastCinematic = Time.unscaledTime;
+                    if (SpeedIndex > 2) SpeedIndex = 2;
+                    _slowMo = 2.6f;
+                    Rig.FocusOn(TerrainBuilder.Ground(e.pos), 22, GameSettings.ReduceMotion ? 0.01f : 1.3f, Rig.Yaw + 35f, 22f);
+                    OnDrama?.Invoke(e);
+                }
                 OnChainLink?.Invoke(e);
             }
             bool big = e.magnitude >= 4 || (e.turningPoint && chained);

@@ -142,16 +142,16 @@ namespace GOA.Game
             float targetStorm = w.Weather switch { Weather.Storm => 1f, Weather.Rain => 0.65f, Weather.Cloudy => 0.35f, Weather.Snow => 0.5f, _ => 0f };
             _weatherBlend = Mathf.MoveTowards(_weatherBlend, targetStorm, dt * 0.25f);
             string wl = w.Weather == Weather.Cloudy ? "Overcast" : w.Weather.ToString();
-            if (_weatherBlend < targetStorm - 0.15f) wl += " rolling in";
-            else if (_weatherBlend > targetStorm + 0.15f) wl = (w.Weather == Weather.Clear ? "Clearing" : wl + ", easing");
+            if (_weatherBlend < targetStorm - 0.15f) wl = w.Weather == Weather.Cloudy ? "Clouding over" : wl + " soon"; // short: the HUD pill must never wrap
+            else if (_weatherBlend > targetStorm + 0.15f) wl = "Clearing";
             WeatherLabel = wl;
 
             Color zenith = Lerp3(new Color(0.02f, 0.03f, 0.09f), new Color(0.16f, 0.18f, 0.38f), new Color(0.33f, 0.47f, 0.74f), new Color(0.3f, 0.55f, 0.88f), elev);
             Color horizon = Lerp3(new Color(0.06f, 0.08f, 0.17f), new Color(0.78f, 0.42f, 0.42f), new Color(1.0f, 0.74f, 0.52f), new Color(0.74f, 0.86f, 0.96f), elev);
             Color sunCol = Lerp3(new Color(0.35f, 0.45f, 0.75f), new Color(0.95f, 0.42f, 0.32f), new Color(1.0f, 0.7f, 0.42f), new Color(1.0f, 0.96f, 0.88f), elev);
-            Color ambSky = Lerp3(new Color(0.11f, 0.14f, 0.27f), new Color(0.3f, 0.26f, 0.4f), new Color(0.44f, 0.4f, 0.46f), new Color(0.38f, 0.46f, 0.6f), elev);
+            Color ambSky = Lerp3(new Color(0.11f, 0.14f, 0.27f), new Color(0.3f, 0.26f, 0.4f), new Color(0.44f, 0.4f, 0.46f), new Color(0.31f, 0.38f, 0.52f), elev); // a softer noon fill keeps contrast
             Color ambGround = Lerp3(new Color(0.04f, 0.045f, 0.07f), new Color(0.14f, 0.1f, 0.12f), new Color(0.26f, 0.2f, 0.16f), new Color(0.26f, 0.24f, 0.18f), elev);
-            float sunI = elev > 0 ? Mathf.Lerp(0.6f, 1.2f, Mathf.Clamp01(elev / 25f)) : Mathf.Lerp(0.28f, 0.05f, Mathf.Clamp01(-elev / 4f) * (1 - Night)) ;
+            float sunI = elev > 0 ? Mathf.Lerp(0.6f, 1.32f, Mathf.Clamp01(elev / 25f)) : Mathf.Lerp(0.28f, 0.05f, Mathf.Clamp01(-elev / 4f) * (1 - Night)) ;
 
             var grey = new Color(0.52f, 0.56f, 0.6f);
             float wb = _weatherBlend;

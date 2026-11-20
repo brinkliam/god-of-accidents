@@ -19,10 +19,13 @@ namespace GOA.Game
         int _builtAge = -1;
         float _scale = 1f;
         MeshRenderer[] _renderers;
-        public Vector3 HeadPosition => transform.position + Vector3.up * 1.45f * _scale;
+        public Vector3 HeadPosition => transform.position + Vector3.up * 1.45f * _scale * _display;
+        /// <summary>Readability boost: villagers are chunkier than life and grow with distance from the camera.</summary>
+        float _display = 1.3f;
+        public const float BaseChunk = 1.3f;
         public bool Visible { get; private set; }
 
-        static Material Mat => Mats.Stylized("people", rim: 0.45f, wrap: 0.55f, gloss: 0.1f, snow: 0f);
+        static Material Mat => Mats.Stylized("people", rim: 0.75f, wrap: 0.5f, gloss: 0.12f, snow: 0f); // strong rim = clear silhouette
 
         public static CitizenView Create(Transform parent, Citizen c, long now)
         {
@@ -264,7 +267,12 @@ namespace GOA.Game
                     if ((pos - CameraPos).sqrMagnitude < 55 * 55) { StepDust.transform.position = pos + Vector3.up * 0.05f; StepDust.Emit(1); }
                 }
             }
-            transform.position = pos + Vector3.up * bob * _scale;
+            // grow with distance so a villager stays a readable shape from the god's-eye view
+            float camDist = Vector3.Distance(pos, CameraPos);
+            float target = BaseChunk * Mathf.Lerp(1f, 2.3f, Mathf.InverseLerp(30f, 230f, camDist));
+            _display = Mathf.Lerp(_display, target, 1 - Mathf.Exp(-dt * 6f));
+            transform.localScale = new Vector3(_display * 1.12f, _display, _display * 1.12f);
+            transform.position = pos + Vector3.up * bob * _scale * _display;
             transform.rotation = Quaternion.Euler(0, _yaw, 0);
             _body.localRotation = Quaternion.Euler(tilt, 0, 0);
             _legL.localRotation = Quaternion.Euler(legA, 0, 0);

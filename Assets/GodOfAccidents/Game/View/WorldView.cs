@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using GOA.Sim;
 using UnityEngine;
@@ -614,9 +615,18 @@ namespace GOA.Game
                     Burst(_dust, p, 6);
                     break;
                 case SimEventType.WellBroken:
+                    Burst(_dust, p, 40);
+                    Burst(_splash, p + Vector3.up, 220);
+                    DebrisFx.Spawn(p + Vector3.up * 0.5f, Palette.Stone, 14, 5f);
+                    break;
                 case SimEventType.BuildingDestroyed:
+                    Burst(_dust, p, 70);
+                    DebrisFx.Spawn(p + Vector3.up * 2f, Palette.Timber, 22, 7f);
+                    RippleFx.Spawn(p, new Color(1.6f, 0.6f, 0.25f), 14);
+                    break;
                 case SimEventType.CartRoll:
                     Burst(_dust, p, 40);
+                    DebrisFx.Spawn(p + Vector3.up * 0.6f, Palette.Wheat, 12, 4f);
                     break;
                 case SimEventType.LightningStrike:
                     if (Atmosphere) Atmosphere.Flash(p);
@@ -639,6 +649,15 @@ namespace GOA.Game
             }
         }
 
+
+        /// <summary>A golden burst at a point (codex discoveries).</summary>
+        public void Celebrate(Vector3 at)
+        {
+            var p = TerrainBuilder.Ground(at.x, at.z);
+            Burst(_sparkles, p + Vector3.up * 2f, 170);
+            RippleFx.Spawn(p, Palette.Fate, 18);
+            RippleFx.Spawn(p, Palette.Fate * 0.6f, 9);
+        }
         static void Burst(ParticleSystem ps, Vector3 at, int n)
         {
             if (!ps) return;
@@ -662,6 +681,24 @@ namespace GOA.Game
 
         public bool CitizenVisible(int id) => _citizens.TryGetValue(id, out var v) && v && v.Visible;
 
+        /// <summary>Nearest visible villager to a screen point that passes the filter, within a pixel radius.</summary>
+        public bool SnapCitizen(Camera cam, Vector2 screen, float radiusPx, Func<Citizen, bool> valid, out int id, out Vector3 at)
+        {
+            id = -1; at = default; float best = radiusPx;
+            foreach (var kv in _citizens)
+            {
+                if (!kv.Value || !kv.Value.Visible) continue;
+                var c = World.GetCitizen(kv.Key);
+                if (c == null || !valid(c)) continue;
+                var wp = kv.Value.transform.position + Vector3.up * 0.8f * kv.Value.transform.localScale.y;
+                var sp = cam.WorldToScreenPoint(wp);
+                if (sp.z < 0) continue;
+                float d = Vector2.Distance(screen, new Vector2(sp.x, sp.y));
+                if (d < best) { best = d; id = kv.Key; at = kv.Value.transform.position; }
+            }
+            return id >= 0;
+        }
+
         /// <summary>Screen-space picking: nearest villager / prop within reach, else the building or ground under the cursor.</summary>
         public PickResult Pick(Camera cam, Vector2 screen, double t, bool propsFirst, float radiusPx)
         {
@@ -674,7 +711,7 @@ namespace GOA.Game
                 if (d < radiusPx && d < best.screenDistance) best = new PickResult { kind = k, id = id, point = world, screenDistance = d };
             }
             foreach (var kv in _citizens)
-                if (kv.Value && kv.Value.Visible) Consider(PickKind.Citizen, kv.Key, kv.Value.transform.position + Vector3.up * 0.8f, propsFirst ? -6 : 4);
+                if (kv.Value && kv.Value.Visible) Consider(PickKind.Citizen, kv.Key, kv.Value.transform.position + Vector3.up * 0.8f * kv.Value.transform.localScale.y, propsFirst ? -6 : 4);
             foreach (var p in World.Props)
             {
                 if (!p.active || p.type == PropType.CrowNest) continue;
@@ -760,7 +797,7 @@ namespace GOA.Game
                     _mf.sharedMesh = r.mesh;
                     _height = r.height;
                     _chimney = r.chimney;
-                    if (_spinner) Object.Destroy(_spinner.gameObject);
+                    if (_spinner) UnityEngine.Object.Destroy(_spinner.gameObject);
                     if (r.spinner != null)
                     {
                         var sg = new GameObject("Spinner");
@@ -779,7 +816,7 @@ namespace GOA.Game
                     bool building = b.buildProgress < 1 && !b.destroyed;
                     _mr.enabled = !hidden && !ash;
                     _go.transform.localScale = new Vector3(1, building ? Mathf.Max(0.12f, b.buildProgress) : 1, 1);
-                    if (_scaffold) Object.Destroy(_scaffold);
+                    if (_scaffold) UnityEngine.Object.Destroy(_scaffold);
                     if (building)
                     {
                         _scaffold = new GameObject("Scaffold");
@@ -788,7 +825,7 @@ namespace GOA.Game
                         _scaffold.AddComponent<MeshFilter>().sharedMesh = BuildingFactory.Scaffold(b, Mathf.Max(3, _height * 0.8f));
                         _scaffold.AddComponent<MeshRenderer>().sharedMaterial = _mats[0];
                     }
-                    if (_ruin) Object.Destroy(_ruin);
+                    if (_ruin) UnityEngine.Object.Destroy(_ruin);
                     if (ash)
                     {
                         _ruin = new GameObject("Ash");
@@ -977,20 +1014,22 @@ namespace GOA.Game
                 var fc = Fx.FlameCfg; fc.radius = size; _flames = Fx.Make(_root.transform, "Flames", fc);
                 var sc = Fx.SmokeCfg; sc.radius = size; _smoke = Fx.Make(_root.transform, "Smoke", sc, Vector3.up * 2);
                 var ec = Fx.EmberCfg; ec.radius = size; _embers = Fx.Make(_root.transform, "Embers", ec);
-                _light = Fx.PointLight(_root.transform, new Color(1f, 0.55f, 0.2f), 22, 0, Vector3.up);
+                _light = Fx.PointLight(_root.transform, new Color(1f, 0.55f, 0.2f), 30, 0, Vector3.up);
+                // the moment it catches: a gout of embers
+                _embers.Emit(90);
             }
 
             public void Tick(Fire f, float dt)
             {
                 float k = f.active ? Mathf.Clamp01(f.intensity + 0.15f) : 0;
                 if (!f.active) _fade -= dt * 0.3f;
-                Fx.SetRate(_flames, 70 * k);
-                Fx.SetRate(_embers, 30 * k);
+                Fx.SetRate(_flames, 110 * k);
+                Fx.SetRate(_embers, 55 * k);
                 Fx.SetRate(_smoke, f.active ? 6 + 14 * k : 4 * _fade);
-                _light.intensity = (3.5f + Mathf.PerlinNoise(Time.time * 6, 0) * 2.5f) * k;
+                _light.intensity = (5f + Mathf.PerlinNoise(Time.time * 6, 0) * 3.5f) * k; // the fire lights up the whole lane
             }
 
-            public void Dispose() { if (_root) Object.Destroy(_root); }
+            public void Dispose() { if (_root) UnityEngine.Object.Destroy(_root); }
         }
     }
 }

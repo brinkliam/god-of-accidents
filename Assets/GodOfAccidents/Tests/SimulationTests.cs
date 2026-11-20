@@ -441,5 +441,39 @@ namespace GOA.Tests
             }
             Assert.GreaterOrEqual(withHints, samples / 3, "markers should be on screen for much of the first minutes of play");
         }
+
+        [TestCase(1UL)]
+        [TestCase(77UL)]
+        [TestCase(4321UL)]
+        public void LivingVillagersNeverShareAFirstName(ulong seed)
+        {
+            var w = new World(seed);
+            for (int y = 0; y <= 12; y += 3)
+            {
+                w.AdvanceTo(World.StartTime + y * SimTime.Year);
+                var names = w.Citizens.Where(c => c.IsActive).Select(c => c.firstName).ToList();
+                Assert.AreEqual(names.Count, names.Distinct().Count(), $"duplicate first names in year {y}: " + string.Join(", ", names.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key)));
+            }
+        }
+
+        [TestCase(1UL)]
+        [TestCase(2026UL)]
+        [TestCase(12251UL)]
+        [TestCase(98765UL)]
+        public void NoNaturalFiresInTheFirstDays(ulong seed)
+        {
+            var w = new World(seed);
+            w.AdvanceTo(World.StartTime + 3 * SimTime.Day);
+            Assert.IsFalse(w.Ledger.Events.Any(e => e.type == SimEventType.FireStarted), "a fresh world should not catch fire on its own");
+        }
+
+        [Test]
+        public void ForgottenGeniusShowsAnEarlyFirstStep()
+        {
+            var w = new World(ScenarioDef.ForgottenGenius.fixedSeed, ScenarioDef.ForgottenGenius);
+            var s = Challenges.Evaluate(w);
+            Assert.AreEqual("Catch Wren's eye with something new", s.steps[0].text);
+            StringAssert.Contains("Ambrose", s.headline);
+        }
     }
 }

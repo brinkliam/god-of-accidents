@@ -16,12 +16,18 @@ namespace GOA.Game
         float _chainSettleAt = -1;
         int _chainLinks;
         readonly List<(VisualElement e, float start, float dur)> _pops = new List<(VisualElement, float, float)>();
+        VisualElement _barTop, _barBottom;
+        float _dramaUntil, _bars;
 
         void BuildChainCard()
         {
             _chainLayer = new VisualElement { pickingMode = PickingMode.Ignore };
             _chainLayer.AddToClassList("chain-layer");
             _bannerLayer.Add(_chainLayer);
+            _barTop = new VisualElement { pickingMode = PickingMode.Ignore }; _barTop.AddToClassList("letterbox"); _barTop.AddToClassList("letterbox-top");
+            _barBottom = new VisualElement { pickingMode = PickingMode.Ignore }; _barBottom.AddToClassList("letterbox"); _barBottom.AddToClassList("letterbox-bottom");
+            _bannerLayer.Add(_barTop); _bannerLayer.Add(_barBottom);
+            S.OnDrama += _ => { _dramaUntil = Time.unscaledTime + 3.2f; };
             S.OnChainLink += e =>
             {
                 // keep the deepest link; show the card once the chain has been quiet for a moment
@@ -35,6 +41,11 @@ namespace GOA.Game
         void TickChainCard()
         {
             float now = Time.unscaledTime;
+            // cinematic bars slide in for the dramatic moment
+            float want = now < _dramaUntil && !GameSettings.ReduceMotion ? 1f : 0f;
+            _bars = Mathf.MoveTowards(_bars, want, Time.unscaledDeltaTime * 3f);
+            float hgt = Mathf.SmoothStep(0, 1, _bars) * 9f;
+            if (_barTop != null) { _barTop.style.height = new Length(hgt, LengthUnit.Percent); _barBottom.style.height = new Length(hgt, LengthUnit.Percent); }
             for (int i = _pops.Count - 1; i >= 0; i--)
             {
                 var (e, start, dur) = _pops[i];
@@ -118,6 +129,43 @@ namespace GOA.Game
             PopIn(card);
             Audio?.TurningPoint(true);
             FadeOutAndRemove(card, 6500, 900);
+        }
+
+        // ------------------------------------------------------------------ codex discovered: the reveal
+
+        VisualElement _shimmer;
+        float _shimmerStart = -10;
+
+        void CodexReveal(Codex.Entry e)
+        {
+            _bannerLayer.Q(className: "codex-reveal")?.RemoveFromHierarchy();
+            var wrap = new VisualElement { pickingMode = PickingMode.Ignore };
+            wrap.AddToClassList("codex-reveal");
+            var halo = new VisualElement { pickingMode = PickingMode.Ignore }; halo.AddToClassList("codex-halo");
+            wrap.Add(halo);
+            var card = new VisualElement(); card.AddToClassList("codex-card");
+            card.Add(L($"CODEX DISCOVERED  ·  {Codex.FoundCount} OF {Codex.All.Length}", "codex-kicker"));
+            card.Add(L(e.title, "codex-title"));
+            card.Add(L(e.blurb, "codex-blurb"));
+            _shimmer = new VisualElement { pickingMode = PickingMode.Ignore }; _shimmer.AddToClassList("codex-shimmer");
+            card.Add(_shimmer);
+            foreach (var ch in card.Children()) ch.pickingMode = PickingMode.Ignore;
+            card.RegisterCallback<ClickEvent>(_ => wrap.RemoveFromHierarchy()); // tap to dismiss
+            wrap.Add(card);
+            _bannerLayer.Add(wrap);
+            PopIn(card, 0.6f);
+            _shimmerStart = Time.unscaledTime + 0.35f;
+            S.View?.Celebrate(Rig.Target);
+            Audio?.Ui("codex"); Audio?.TurningPoint(true);
+            FadeOutAndRemove(wrap, 5200, 900);
+        }
+
+        void TickShimmer()
+        {
+            if (_shimmer == null || _shimmer.panel == null) return;
+            float u = Mathf.Clamp01((Time.unscaledTime - _shimmerStart) / 1.1f);
+            _shimmer.style.left = new Length(-30 + u * 140, LengthUnit.Percent);
+            _shimmer.style.opacity = u <= 0 || u >= 1 ? 0 : Mathf.Sin(u * Mathf.PI) * 0.85f;
         }
     }
 }

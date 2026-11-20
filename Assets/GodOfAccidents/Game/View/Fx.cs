@@ -259,4 +259,53 @@ namespace GOA.Game
         public float after = 5;
         void Update() { after -= Time.unscaledDeltaTime; if (after <= 0) Destroy(gameObject); }
     }
+
+    /// <summary>Chunks of stone, timber or hay flung out by a crash or a collapse; they arc, tumble, bounce once and fade.</summary>
+    public sealed class DebrisFx : MonoBehaviour
+    {
+        static readonly System.Collections.Generic.Dictionary<Color, Mesh> _meshes = new System.Collections.Generic.Dictionary<Color, Mesh>();
+        Transform[] _bits; Vector3[] _vel; Vector3[] _spin; float _t; float _ground;
+
+        public static void Spawn(Vector3 at, Color color, int count, float force)
+        {
+            if (!_meshes.TryGetValue(color, out var mesh))
+            {
+                var k = new MeshKit(); k.Box(Vector3.zero, Vector3.one * 0.32f, color); mesh = k.ToMesh("Debris"); _meshes[color] = mesh;
+            }
+            var go = new GameObject("Debris");
+            go.transform.position = at;
+            var d = go.AddComponent<DebrisFx>();
+            d._ground = at.y - 0.5f;
+            d._bits = new Transform[count]; d._vel = new Vector3[count]; d._spin = new Vector3[count];
+            var mat = Mats.Stylized("props", rim: 0.2f);
+            for (int i = 0; i < count; i++)
+            {
+                var b = new GameObject("Bit");
+                b.transform.SetParent(go.transform, false);
+                b.AddComponent<MeshFilter>().sharedMesh = mesh;
+                b.AddComponent<MeshRenderer>().sharedMaterial = mat;
+                b.transform.localScale = Vector3.one * Random.Range(0.5f, 1.3f);
+                d._bits[i] = b.transform;
+                var dir = Random.insideUnitSphere; dir.y = Mathf.Abs(dir.y) + 0.6f;
+                d._vel[i] = dir.normalized * force * Random.Range(0.6f, 1.2f);
+                d._spin[i] = Random.insideUnitSphere * 540f;
+            }
+        }
+
+        void Update()
+        {
+            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            _t += dt;
+            for (int i = 0; i < _bits.Length; i++)
+            {
+                _vel[i] += Vector3.down * 18f * dt;
+                var p = _bits[i].position + _vel[i] * dt;
+                if (p.y < _ground) { p.y = _ground; _vel[i] = new Vector3(_vel[i].x * 0.5f, -_vel[i].y * 0.3f, _vel[i].z * 0.5f); _spin[i] *= 0.5f; }
+                _bits[i].position = p;
+                _bits[i].Rotate(_spin[i] * dt, Space.World);
+                if (_t > 2.2f) _bits[i].localScale *= 1 - dt * 3f;
+            }
+            if (_t > 3.2f) Destroy(gameObject);
+        }
+    }
 }

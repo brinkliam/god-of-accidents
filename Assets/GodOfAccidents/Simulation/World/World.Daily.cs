@@ -391,7 +391,7 @@ namespace GOA.Sim
                 int cause = rel != null ? rel.causeEventId : -1;
                 bool girl = Rand.Chance(0.5, Seed, day, m.id, 1, (int)Salt.Birth);
                 var names = girl ? NameBank.Female : NameBank.Male;
-                string first = names[Rand.Range(0, names.Length, Seed, day, m.id, 2, (int)Salt.Birth)];
+                string first = UniqueFirstName(names[Rand.Range(0, names.Length, Seed, day, m.id, 2, (int)Salt.Birth)], girl);
                 Trait inherit = Trait.None;
                 foreach (var parent in new[] { m, f })
                     foreach (Trait t in Enum.GetValues(typeof(Trait)))
