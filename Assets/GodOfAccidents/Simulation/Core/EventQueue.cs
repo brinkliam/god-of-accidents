@@ -5,7 +5,7 @@ namespace GOA.Sim
     public enum TaskKind
     {
         Decide, Encounter, DailyTick, FireUpdate, Intervention, NoticeScan, CartStep, BirdArrive,
-        LanternIgnite, GustTick, EnergyGrant, ChallengeCheck, WindCheck, Lightning
+        LanternIgnite, GustTick, EnergyGrant, WindCheck, Lightning, Ambient, AmbientFollow
     }
 
     public struct ScheduledTask

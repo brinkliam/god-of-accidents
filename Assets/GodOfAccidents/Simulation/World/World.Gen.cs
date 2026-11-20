@@ -50,6 +50,7 @@ namespace GOA.Sim
             foreach (var c in Citizens) Decide(c);
             Schedule(SimTime.Day, TaskKind.DailyTick);
             Schedule(Time + 30 * SimTime.Minute, TaskKind.NoticeScan);
+            ScheduleAmbientDay(Time, true);
         }
 
         static float FacingTo(Vec2 from, Vec2 to) => (to - from).Angle;

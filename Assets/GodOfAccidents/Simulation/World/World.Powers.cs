@@ -99,7 +99,7 @@ namespace GOA.Sim
             if (!v.ok) return v;
             if (input.kind == InputKind.EnergyGrant)
             {
-                Energy = Math.Min(Scenario.maxEnergy + 3, Energy + input.amount);
+                Energy = Math.Min(Scenario.maxEnergy, Energy + input.amount); // a reward never overfills the well
                 return new PowerResult { ok = true, eventId = -1, message = $"+{input.amount:0} divine energy" };
             }
             Energy -= CostOf(input.power);
@@ -188,7 +188,7 @@ namespace GOA.Sim
         {
             var c = Citizens[input.targetId];
             var pos = PositionNow(c);
-            var e = Intervention(PowerType.Distract, $"You set a glimmer before {c.firstName}'s eyes", $"{c.Name} stops dead, enchanted by a drifting mote of light.", pos);
+            var e = Intervention(PowerType.Distract, $"You set a glimmer before {c.Name}'s eyes", $"{c.Name} stops dead, enchanted by a drifting mote of light.", pos);
             Interrupt(c, ActivityKind.Distracted, 25 * SimTime.Minute, e.id);
             Remember(c, "Saw a strange glimmer in the air", e.id);
             Glimmers.Add(new Glimmer { pos = pos, until = Time + 25 * SimTime.Minute, citizenId = c.id, causeEventId = e.id });

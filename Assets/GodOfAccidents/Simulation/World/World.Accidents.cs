@@ -92,7 +92,7 @@ namespace GOA.Sim
                 {
                     firstArrived.fame += 3;
                     bool unlikely = firstArrived.Has(Trait.Timid) || firstArrived.AgeYears(Time) < 16 || firstArrived.Has(Trait.Clumsy);
-                    var h = Record(SimEventType.Heroism, $"{firstArrived.firstName} leads the bucket line",
+                    var h = Record(SimEventType.Heroism, $"{firstArrived.Name} leads the bucket line",
                         $"{firstArrived.Name} was first to the flames at {b.name}{(unlikely ? " - nobody expected it of them" : "")}.", 2,
                         C(e.id), C(firstArrived.id), b.pos);
                     Remember(firstArrived, $"Fought the fire at {b.name}", h.id);
@@ -288,7 +288,7 @@ namespace GOA.Sim
             if (stamper != null)
             {
                 stamper.fame += 2;
-                var h = Record(SimEventType.Heroism, $"{stamper.firstName} stamps out the lantern fire",
+                var h = Record(SimEventType.Heroism, $"{stamper.Name} stamps out the lantern fire",
                     $"{stamper.Name} smothers the burning oil before it reaches the thatch of the Crooked Kettle.", 2, C(fallEvent), C(stamper.id), lantern.pos);
                 Remember(stamper, "Stamped out a fire at the tavern", h.id);
                 lantern.state = 2; // smashed, out
@@ -341,7 +341,7 @@ namespace GOA.Sim
                 if (rescuer != null)
                 {
                     rescuer.fame += 3;
-                    var e = Record(SimEventType.Rescue, $"{rescuer.firstName} pulls {c.firstName} clear",
+                    var e = Record(SimEventType.Rescue, $"{rescuer.Name} pulls {c.Name} clear",
                         $"{rescuer.Name} dives and drags {c.Name} out of the runaway cart's path.", 2, C(Cart.causeEventId), C(rescuer.id, c.id), pos);
                     AdjustAffinity(rescuer, c, 30);
                     Remember(rescuer, $"Saved {c.Name} from the runaway cart", e.id);
@@ -352,7 +352,7 @@ namespace GOA.Sim
                 else
                 {
                     c.injuredUntilDay = (int)SimTime.DayIndex(Time) + 5;
-                    var e = Record(SimEventType.Injury, $"{c.firstName} is struck by the cart", $"{c.Name} is knocked down and badly bruised.", 2, C(Cart.causeEventId), C(c.id), pos);
+                    var e = Record(SimEventType.Injury, $"{c.Name} is struck by the cart", $"{c.Name} is knocked down and badly bruised.", 2, C(Cart.causeEventId), C(c.id), pos);
                     Remember(c, "Was struck by a runaway cart", e.id);
                     Interrupt(c, ActivityKind.Recover, 30 * SimTime.Minute, e.id);
                 }

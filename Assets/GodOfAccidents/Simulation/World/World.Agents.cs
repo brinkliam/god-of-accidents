@@ -392,7 +392,7 @@ namespace GOA.Sim
 
         void BeginCourtship(Citizen a, Citizen b, int cause)
         {
-            var e = Record(SimEventType.Courtship, $"{a.firstName} and {b.firstName} begin courting",
+            var e = Record(SimEventType.Courtship, $"{a.Name} and {b.Name} begin courting",
                 $"{a.Name} and {b.Name} find excuses to be in the same place at the same time.", 2,
                 cause >= 0 ? C(cause) : null, C(a.id, b.id), PositionNow(a));
             var r1 = EnsureRelation(a, b); r1.kind = RelationKind.Courting; r1.causeEventId = e.id; r1.affinity = Math.Max(r1.affinity, 40);
@@ -489,7 +489,7 @@ namespace GOA.Sim
                 Interrupt(c, ActivityKind.Idle, 4 * SimTime.Minute, -1); // a natural stumble nobody will remember
                 return;
             }
-            var trip = Record(SimEventType.Trip, $"{c.firstName} {(carrying ? "trips and spills the cargo" : "trips over a pebble")}",
+            var trip = Record(SimEventType.Trip, $"{c.Name} {(carrying ? "trips and spills the cargo" : "trips over a pebble")}",
                 $"{c.Name} catches a foot on a pebble{(carrying ? $" and the {c.cargo} goes flying" : "")}.",
                 carrying ? 2 : 1, cause >= 0 ? C(cause) : null, C(c.id), here);
             Remember(c, "Tripped on the road", trip.id);
@@ -503,14 +503,14 @@ namespace GOA.Sim
                 var item = c.cargoItem;
                 c.cargoItem = ItemType.None;
                 var dropped = Record(SimEventType.ItemDropped, $"A {ItemName(item)} rolls into the grass",
-                    $"Nobody notices the {ItemName(item)} that tumbled from {c.firstName}'s pack.", 1, C(trip.id), C(c.id), drop);
+                    $"Nobody notices the {ItemName(item)} that tumbled from {c.Name}'s pack.", 1, C(trip.id), C(c.id), drop);
                 SpawnGroundItem(item, drop, dropped.id);
             }
 
             if (age > 60 && Rand.Chance(0.35, Seed, c.id, Time, 0, (int)Salt.Hit))
             {
                 c.injuredUntilDay = (int)SimTime.DayIndex(Time) + 3;
-                var inj = Record(SimEventType.Injury, $"{c.firstName} twists an ankle", $"{c.Name} will be laid up for a few days.", 1, C(trip.id), C(c.id), here);
+                var inj = Record(SimEventType.Injury, $"{c.Name} twists an ankle", $"{c.Name} will be laid up for a few days.", 1, C(trip.id), C(c.id), here);
                 Remember(c, "Twisted an ankle on the road", inj.id);
             }
             Interrupt(c, ActivityKind.Idle, 8 * SimTime.Minute, trip.id);
@@ -567,7 +567,7 @@ namespace GOA.Sim
             p.active = false;
             PropVersion[p.id]++;
             int age = c.AgeYears(Time);
-            var found = Record(SimEventType.ItemFound, $"{c.firstName} finds a {ItemName(p.item)}",
+            var found = Record(SimEventType.ItemFound, $"{c.Name} finds a {ItemName(p.item)}",
                 $"{c.Name} picks a {ItemName(p.item)} out of the grass.", 1, C(p.causeEventId), C(c.id), p.pos);
             Remember(c, $"Found a {ItemName(p.item)}", found.id);
             // briefly stop to look at it
@@ -588,17 +588,25 @@ namespace GOA.Sim
                     {
                         c.lore += 12;
                         if (age <= 20) Spark(c, "letters", found.id, "reads the book by candlelight until it falls apart");
-                        else RecordIfChained(SimEventType.Discovery, $"{c.firstName} studies a lost book", $"{c.Name} learns from its pages.", 1, C(found.id), C(c.id));
+                        else RecordIfChained(SimEventType.Discovery, $"{c.Name} studies a lost book", $"{c.Name} learns from its pages.", 1, C(found.id), C(c.id));
                     }
-                    else RecordIfChained(SimEventType.ItemSold, $"{c.firstName} uses a book as kindling", "Its secrets go up the chimney.", 0, C(found.id), C(c.id));
+                    else RecordIfChained(SimEventType.ItemSold, $"{c.Name} uses a book as kindling", "Its secrets go up the chimney.", 0, C(found.id), C(c.id));
                     break;
                 case ItemType.Coin:
                     FoundCoin(c, found.id);
                     break;
+                case ItemType.Basket:
+                {
+                    var owner = GetCitizen(p.ownerId);
+                    if (owner != null && owner.id != c.id && IsAwakeOutside(owner) && (!Scenario.isChallenge || age >= 16))
+                        Meet(c, owner, found.id, "carries the lost basket of apples back to", false);
+                    else c.mood = Math.Min(1, c.mood + 0.08f);
+                    break;
+                }
                 case ItemType.Key:
                     if (c.Has(Trait.Curious))
                     {
-                        var e = Record(SimEventType.Discovery, $"{c.firstName} opens the crypt chest",
+                        var e = Record(SimEventType.Discovery, $"{c.Name} opens the crypt chest",
                             $"The iron key fits a forgotten chest beneath the chapel. Inside: an old almanac.", 2, C(found.id), C(c.id), p.pos);
                         c.lore += 15;
                         if (age <= 20) Spark(c, "letters", e.id, "pores over the almanac's star tables");
@@ -614,14 +622,14 @@ namespace GOA.Sim
         void Sell(Citizen c, ItemType item, int value, int cause)
         {
             c.wealth += value;
-            RecordIfChained(SimEventType.ItemSold, $"{c.firstName} sells the {ItemName(item)}", $"{c.Name} trades it for {value} coins.", 0, C(cause), C(c.id));
+            RecordIfChained(SimEventType.ItemSold, $"{c.Name} sells the {ItemName(item)}", $"{c.Name} trades it for {value} coins.", 0, C(cause), C(c.id));
         }
 
         void FoundCoin(Citizen c, int cause)
         {
             if (c.Has(Trait.Kind) && !c.Has(Trait.Greedy))
             {
-                var e = Record(SimEventType.Donation, $"{c.firstName} gives the coin to the chapel", $"{c.Name} drops the silver into the alms box.", 1, C(cause), C(c.id));
+                var e = Record(SimEventType.Donation, $"{c.Name} gives the coin to the chapel", $"{c.Name} drops the silver into the alms box.", 1, C(cause), C(c.id));
                 foreach (var o in Citizens) if (o.IsActive && o.occupation == Occupation.Priest) { o.mood = Math.Min(1, o.mood + 0.1f); AdjustAffinity(o, c, 10); }
                 c.fame += 1;
                 Remember(c, "Gave a found coin to the chapel", e.id);
@@ -629,7 +637,7 @@ namespace GOA.Sim
             else if (c.Has(Trait.Reckless))
             {
                 bool win = Rand.Chance(0.5, Seed, c.id, Time, 0, (int)Salt.Gamble);
-                var e = Record(SimEventType.Gamble, win ? $"{c.firstName} doubles the coin at dice" : $"{c.firstName} loses the coin at dice",
+                var e = Record(SimEventType.Gamble, win ? $"{c.Name} doubles the coin at dice" : $"{c.Name} loses the coin at dice",
                     win ? $"{c.Name}'s luck holds at the Crooked Kettle." : $"{c.Name} accuses the dice of cheating.", 1, C(cause), C(c.id));
                 if (win) c.wealth += 20;
                 else
@@ -638,7 +646,7 @@ namespace GOA.Sim
                     if (inn != null && inn.id != c.id)
                     {
                         AdjustAffinity(c, inn, -35);
-                        var r = Record(SimEventType.Rivalry, $"{c.firstName} quarrels with {inn.firstName}", $"Harsh words at the tavern between {c.Name} and {inn.Name}.", 1, C(e.id), C(c.id, inn.id));
+                        var r = Record(SimEventType.Rivalry, $"{c.Name} quarrels with {inn.Name}", $"Harsh words at the tavern between {c.Name} and {inn.Name}.", 2, C(e.id), C(c.id, inn.id));
                         EnsureRelation(c, inn).kind = RelationKind.Rival; EnsureRelation(inn, c).kind = RelationKind.Rival;
                         Remember(c, $"Fell out with {inn.Name}", r.id);
                     }
@@ -647,7 +655,7 @@ namespace GOA.Sim
             else
             {
                 c.wealth += 10;
-                RecordIfChained(SimEventType.ItemSold, $"{c.firstName} pockets the coin", $"{c.Name} is ten coins richer.", 0, C(cause), C(c.id));
+                RecordIfChained(SimEventType.ItemSold, $"{c.Name} pockets the coin", $"{c.Name} is ten coins richer.", 0, C(cause), C(c.id));
             }
         }
 
@@ -661,7 +669,7 @@ namespace GOA.Sim
         {
             string key = "spark:" + field;
             if (c.marks.ContainsKey(key)) return;
-            var e = Record(SimEventType.Spark, $"A spark of wonder in {c.firstName}",
+            var e = Record(SimEventType.Spark, $"A spark of wonder in {c.Name}",
                 $"{c.Name} {flavour}. Something has woken up.", 3, cause >= 0 ? C(cause) : null, C(c.id), PositionNow(c), true);
             c.marks[key] = e.id;
             c.goal = field switch
@@ -681,9 +689,9 @@ namespace GOA.Sim
             var existing = a.Rel(b.id);
             bool strangers = existing == null || existing.affinity < 20;
             float gain = (a.Has(Trait.Curious) && b.Has(Trait.Curious)) ? 35 : 22;
-            AdjustAffinity(a, b, gain);
+            AdjustAffinity(a, b, gain, cause);
             var e = Record(SimEventType.Meeting,
-                strangers ? $"{a.firstName} and {b.firstName} meet" : $"{a.firstName} and {b.firstName} share a moment",
+                strangers ? $"{a.Name} and {b.Name} meet" : $"{a.Name} and {b.Name} share a moment",
                 glimmer ? $"{a.Name} {verb} {b.Name}; both watch the same strange glimmer dance in the air." : $"{a.Name} {verb} {b.Name}.",
                 strangers ? 2 : 1, cause >= 0 ? C(cause) : null, C(a.id, b.id), PositionNow(b));
             Remember(a, $"Met {b.Name}", e.id);
@@ -701,7 +709,7 @@ namespace GOA.Sim
             else if ((a.Has(Trait.Greedy) && b.Has(Trait.Ambitious)) || (a.Has(Trait.Ambitious) && b.Has(Trait.Greedy)))
             {
                 AdjustAffinity(a, b, -40);
-                var r = Record(SimEventType.Rivalry, $"{a.firstName} and {b.firstName} become rivals", "Two ambitions, one small vale.", 1, C(e.id), C(a.id, b.id));
+                var r = Record(SimEventType.Rivalry, $"{a.Name} and {b.Name} become rivals", "Two ambitions, one small vale.", 2, C(e.id), C(a.id, b.id));
                 EnsureRelation(a, b).kind = RelationKind.Rival; EnsureRelation(b, a).kind = RelationKind.Rival;
                 Remember(a, $"Became rivals with {b.Name}", r.id);
             }
@@ -715,7 +723,7 @@ namespace GOA.Sim
             if (!craftsman || ma < 28 || ya < 7 || ya > 19 || !young.Has(Trait.Curious)) return;
             if (!(mentor.Has(Trait.Kind) || mentor.HasMark("lonely") || mentor.Has(Trait.Curious))) return;
             foreach (var r in young.relations.Values) if (r.kind == RelationKind.Mentor) return;
-            var e = Record(SimEventType.Apprenticeship, $"{mentor.firstName} takes {young.firstName} as apprentice",
+            var e = Record(SimEventType.Apprenticeship, $"{mentor.Name} takes {young.Name} as apprentice",
                 $"{mentor.Name} hears a younger self in {young.Name}'s questions and invites them to the {(mentor.occupation == Occupation.Tinkerer ? "workshop" : "library")}.",
                 3, C(meetEvent), C(mentor.id, young.id), PositionNow(young), true);
             var r1 = EnsureRelation(young, mentor); r1.kind = RelationKind.Mentor; r1.causeEventId = e.id; r1.affinity = Math.Max(r1.affinity, 50);

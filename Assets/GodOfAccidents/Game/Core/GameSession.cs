@@ -144,6 +144,7 @@ namespace GOA.Game
             if (Mode == SessionMode.Replay) StepReplay();
             else w.AdvanceTo((long)DisplayTime);
 
+            View.ShowOpportunities = Mode == SessionMode.Playing && !_modal && GameSettings.Hints;
             View.Tick(DisplayTime, dt, speed, Rig.Cam);
             View.Atmosphere.Tick(w, DisplayTime, dt, GameSettings.Quality == 0);
 

@@ -10,9 +10,10 @@ namespace GOA.Sim
         public string subtitle = "A quiet valley. A thousand tiny accidents waiting to happen.";
         public string briefing = "";
         public ulong fixedSeed;            // 0 = player-chosen seed
-        public float startEnergy = 6;
+        public float startEnergy = 8;          // worlds begin with a full well of divine energy
         public float maxEnergy = 8;
-        public float energyRegenPerDay = 0.5f;
+        public float energyRegenPerDay = 1.5f;
+        public int ambientPerDay = 7;          // small natural mishaps per day (the world lives without you)
         public int maxInterventions;       // 0 = unlimited
         public double naturalSparkRate = 0.0006;
         public bool lensFirstInNest;
@@ -30,7 +31,7 @@ namespace GOA.Sim
             briefing = "Wren is a curious orphan of nine. Left alone, she will grow up to plough her aunt's fields and never build a thing. " +
                        "Without touching her, give Wren the chance to invent something that changes the vale - within 20 years, using at most 3 interventions.",
             fixedSeed = 1207,
-            startEnergy = 6, maxEnergy = 6, energyRegenPerDay = 0.25f,
+            startEnergy = 6, maxEnergy = 6, energyRegenPerDay = 0.75f,
             maxInterventions = 3,
             naturalSparkRate = 0.0006,
             deadlineYear = 21,
@@ -58,7 +59,7 @@ namespace GOA.Sim
             subtitle = "Divine energy overflows. Meddle freely.",
             briefing = "A bonus world with abundant energy. Nothing to win - just see how far one village can be pushed.",
             fixedSeed = 777,
-            startEnergy = 12, maxEnergy = 12, energyRegenPerDay = 2,
+            startEnergy = 12, maxEnergy = 12, energyRegenPerDay = 6, ambientPerDay = 9,
             isBonus = true,
         };
 

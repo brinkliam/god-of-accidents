@@ -17,7 +17,8 @@ namespace GOA.Sim
     {
         Weather = 1, Wind, Cargo, Trip, Notice, Pick, Romance, Birth, Death, Occupation, Traits, Evening,
         Spot, SubMove, Ignite, Spread, Lightning, Invention, Pray, Merchant, Emigrate, Gamble, Rescue, Fight,
-        NaturalSpark, Meet, LightningHour, Lunch, Festival, Build, Courtship, WindIgnite, Hit
+        NaturalSpark, Meet, LightningHour, Lunch, Festival, Build, Courtship, WindIgnite, Hit,
+        Ambient, AmbientPick, AmbientFollow
     }
 
     /// <summary>
@@ -205,9 +206,10 @@ namespace GOA.Sim
                 case TaskKind.BirdArrive: BirdArrive(task.a); break;
                 case TaskKind.LanternIgnite: LanternIgnite(task.a, task.b); break;
                 case TaskKind.GustTick: GustTick(); break;
-                case TaskKind.ChallengeCheck: break;
                 case TaskKind.WindCheck: NaturalWindCheck(); break;
                 case TaskKind.Lightning: LightningStrike(); break;
+                case TaskKind.Ambient: AmbientAccident(task.a); break;
+                case TaskKind.AmbientFollow: AmbientFollow(task.a, task.b, task.c); break;
             }
         }
 
@@ -245,11 +247,23 @@ namespace GOA.Sim
             return r;
         }
 
-        void AdjustAffinity(Citizen a, Citizen b, float delta)
+        void AdjustAffinity(Citizen a, Citizen b, float delta, int cause = -1)
         {
             var r1 = EnsureRelation(a, b); r1.affinity = Math.Max(-100, Math.Min(100, r1.affinity + delta));
             var r2 = EnsureRelation(b, a); r2.affinity = Math.Max(-100, Math.Min(100, r2.affinity + delta));
-            if (r1.kind == RelationKind.Acquaintance && r1.affinity >= 40) { r1.kind = RelationKind.Friend; r2.kind = RelationKind.Friend; }
+            if (r1.kind == RelationKind.Acquaintance && r1.affinity >= 40)
+            {
+                r1.kind = RelationKind.Friend; r2.kind = RelationKind.Friend;
+                if (!AreFamily(a, b) && !a.offMapResident && !b.offMapResident)
+                {
+                    // a relationship milestone worth a line in the Chronicle
+                    var e = Record(SimEventType.Friendship, $"{a.Name} and {b.Name} become friends",
+                        $"{a.firstName} and {b.firstName} now look for each other on the green.", 2, cause >= 0 ? C(cause) : null, C(a.id, b.id), PositionNow(a));
+                    r1.causeEventId = r2.causeEventId = e.id;
+                    Remember(a, $"Became friends with {b.Name}", e.id);
+                    Remember(b, $"Became friends with {a.Name}", e.id);
+                }
+            }
         }
 
         public bool AreFamily(Citizen a, Citizen b)

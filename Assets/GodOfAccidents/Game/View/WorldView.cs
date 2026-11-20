@@ -39,6 +39,11 @@ namespace GOA.Game
         public PickResult Selected;
         public float Quality = 1f;
         float _ripplePhase;
+        // opportunity markers: flashing rings where a nudge would cause something juicy right now
+        public bool ShowOpportunities;
+        public readonly List<Opportunity> Opportunities = new List<Opportunity>();
+        readonly List<(Transform t, Material m)> _oppMarkers = new List<(Transform, Material)>();
+        float _oppTimer;
 
         public void Init(World w, float quality)
         {
@@ -261,6 +266,7 @@ namespace GOA.Game
             TickBirds(t, dt);
             TickGust(t);
             TickSelection(t, dt);
+            TickOpportunities(dt);
 
             if (Foliage != null) Foliage.Draw(cam);
             DrawCrops(t, cam);
@@ -396,6 +402,43 @@ namespace GOA.Game
                 _gustFx.transform.rotation = Quaternion.LookRotation(dir);
                 var sh = _gustFx.shape; sh.rotation = Vector3.zero;
                 var m = _gustFx.main; m.startSpeed = 22; m.simulationSpace = ParticleSystemSimulationSpace.World;
+            }
+        }
+
+        void TickOpportunities(float dt)
+        {
+            _oppTimer -= Time.unscaledDeltaTime;
+            if (_oppTimer <= 0)
+            {
+                _oppTimer = 0.5f;
+                Opportunities.Clear();
+                if (ShowOpportunities) Opportunities.AddRange(World.FindOpportunities(4));
+            }
+            while (_oppMarkers.Count < Opportunities.Count)
+            {
+                var go = new GameObject("Opportunity");
+                go.transform.SetParent(transform, false);
+                go.AddComponent<MeshFilter>().sharedMesh = Fx.Ring(0.7f, 1f, 40);
+                var m = Mats.NewGlow(new Color(1.6f, 1.2f, 0.4f), 2.4f, 6);
+                var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = m; mr.shadowCastingMode = ShadowCastingMode.Off;
+                _oppMarkers.Add((go.transform, m));
+            }
+            float tm = Time.unscaledTime;
+            for (int i = 0; i < _oppMarkers.Count; i++)
+            {
+                var (tr, m) = _oppMarkers[i];
+                bool on = i < Opportunities.Count;
+                if (tr.gameObject.activeSelf != on) tr.gameObject.SetActive(on);
+                if (!on) continue;
+                var o = Opportunities[i];
+                // a quick double flash every second and a half, gold for Nudge, violet for Distract
+                float ph = (tm * 0.66f + i * 0.23f) % 1f;
+                float flash = Mathf.Max(Mathf.Exp(-ph * 9f), Mathf.Exp(-Mathf.Abs(ph - 0.22f) * 18f) * 0.7f);
+                var baseCol = o.power == PowerType.Distract ? new Color(1.1f, 0.6f, 1.8f) : new Color(1.8f, 1.3f, 0.45f);
+                m.SetColor("_Color", baseCol * (0.55f + flash * 1.6f * o.heat));
+                float s = 1.6f + ph * 1.4f;
+                tr.position = TerrainBuilder.Ground(o.pos) + Vector3.up * 0.15f;
+                tr.localScale = new Vector3(s, 1, s);
             }
         }
 
@@ -736,6 +779,11 @@ namespace GOA.Game
                     case ItemType.Lens: k.Cylinder(Vector3.zero, 0.2f, 0.04f, 12, new Color(0.75f, 0.92f, 1f)); k.Cylinder(Vector3.zero, 0.23f, 0.03f, 12, Palette.Brass); break;
                     case ItemType.Book: k.Box(new Vector3(0, 0.05f, 0), new Vector3(0.36f, 0.1f, 0.48f), new Color(0.45f, 0.2f, 0.18f)); k.Box(new Vector3(0.01f, 0.05f, 0), new Vector3(0.34f, 0.08f, 0.44f), Palette.Plaster); break;
                     case ItemType.Coin: k.Cylinder(Vector3.zero, 0.14f, 0.03f, 10, new Color(0.85f, 0.87f, 0.9f)); break;
+                    case ItemType.Basket:
+                        k.Cylinder(Vector3.zero, 0.34f, 0.26f, 10, new Color(0.62f, 0.44f, 0.22f));
+                        for (int i = 0; i < 6; i++) { float a = i * Mathf.PI / 3; k.Box(new Vector3(Mathf.Cos(a) * 0.16f, 0.3f, Mathf.Sin(a) * 0.16f), new Vector3(0.14f, 0.12f, 0.14f), new Color(0.78f, 0.12f, 0.1f)); }
+                        for (int i = 0; i < 4; i++) { float a = i * 1.7f + 0.4f; k.Box(new Vector3(Mathf.Cos(a) * 0.75f, 0.06f, Mathf.Sin(a) * 0.6f), new Vector3(0.13f, 0.12f, 0.13f), new Color(0.82f, 0.16f, 0.1f)); }
+                        break;
                     case ItemType.Key: k.Box(new Vector3(0, 0.03f, 0), new Vector3(0.06f, 0.05f, 0.4f), Palette.Iron); k.Cylinder(new Vector3(0, 0, 0.22f), 0.08f, 0.05f, 8, Palette.Iron); break;
                     default: k.Box(new Vector3(0, 0.03f, 0), new Vector3(0.06f, 0.02f, 0.4f), new Color(0.1f, 0.1f, 0.12f)); break;
                 }

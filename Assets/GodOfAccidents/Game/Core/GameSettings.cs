@@ -12,8 +12,8 @@ namespace GOA.Game
         public static float MusicVolume { get => F("music", 0.55f); set => SetF("music", value); }
         public static float SfxVolume { get => F("sfx", 0.8f); set => SetF("sfx", value); }
         public static float AmbienceVolume { get => F("amb", 0.7f); set => SetF("amb", value); }
-        /// <summary>0 = low (mobile), 1 = medium, 2 = high.</summary>
-        public static int Quality { get => PlayerPrefs.GetInt("goa_quality", Application.isMobilePlatform ? 0 : 2); set { PlayerPrefs.SetInt("goa_quality", value); PlayerPrefs.Save(); } }
+        /// <summary>0 = low (mobile), 1 = medium (web default: smooth on an ordinary laptop), 2 = high.</summary>
+        public static int Quality { get => PlayerPrefs.GetInt("goa_quality", Application.isMobilePlatform ? 0 : Application.platform == RuntimePlatform.WebGLPlayer ? 1 : 2); set { PlayerPrefs.SetInt("goa_quality", value); PlayerPrefs.Save(); } }
         public static bool Cinematics { get => B("cine", true); set => SetB("cine", value); }
         public static bool ReduceMotion { get => B("reducemotion", false); set => SetB("reducemotion", value); }
         public static bool LargeText { get => B("largetext", false); set => SetB("largetext", value); }
@@ -21,6 +21,8 @@ namespace GOA.Game
         public static bool PersonalizedAds { get => B("personalads", false); set => SetB("personalads", value); }
         public static bool ConsentAsked { get => B("consentasked", false); set => SetB("consentasked", value); }
         public static bool TutorialDone { get => B("tutorial", false); set => SetB("tutorial", value); }
+        /// <summary>Flashing opportunity markers where a nudge would cause something juicy.</summary>
+        public static bool Hints { get => B("hints", true); set => SetB("hints", value); }
 
         public static float QualityScale => Quality switch { 0 => 0.45f, 1 => 0.75f, _ => 1f };
     }

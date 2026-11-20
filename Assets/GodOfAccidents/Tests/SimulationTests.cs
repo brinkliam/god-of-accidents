@@ -350,3 +350,54 @@ namespace GOA.Tests
         }
     }
 }
+
+namespace GOA.Tests
+{
+    public class PacingTests
+    {
+        [TestCase(1UL)]
+        [TestCase(2026UL)]
+        [TestCase(98765UL)]
+        public void FirstChainReactionWithinTheFirstMinuteOfPlay(ulong seed)
+        {
+            // one real minute at "Living" speed (120x) is two in-game hours
+            var w = new World(seed);
+            w.AdvanceTo(World.StartTime + 2 * SimTime.Hour);
+            var chained = w.Ledger.Events.FirstOrDefault(e => e.causes.Length > 0 && e.magnitude >= 2);
+            Assert.IsNotNull(chained, "no chain reaction in the first two in-game hours");
+            Assert.IsTrue(w.Ledger.Events.All(e => e.roots.Length == 0), "ambient life must never claim the player as a cause");
+        }
+
+        [Test]
+        public void TheWorldLivesWithoutThePlayer()
+        {
+            var w = new World(4321);
+            w.AdvanceTo(World.StartTime + SimTime.Day);
+            int mishaps = w.Ledger.Events.Count(e => e.type == SimEventType.Mishap || (e.type == SimEventType.ItemFound && e.causes.Length == 0));
+            Assert.GreaterOrEqual(mishaps, 4, "a day should hold several natural mishaps");
+            Assert.GreaterOrEqual(w.Chronicle.Count, 6, "the Chronicle should fill up without any input");
+        }
+
+        [Test]
+        public void WorldsStartWithFullEnergyAndRewardsNeverOverfill()
+        {
+            var w = new World(5, ScenarioDef.Sandbox);
+            Assert.AreEqual(ScenarioDef.Sandbox.maxEnergy, w.Energy, 1e-4);
+            w.Apply(PlayerInput.Grant(5));
+            Assert.LessOrEqual(w.Energy, ScenarioDef.Sandbox.maxEnergy + 1e-4f);
+        }
+
+        [Test]
+        public void OpportunityQueryDoesNotChangeTheWorld()
+        {
+            var a = new World(77); var b = new World(77);
+            for (int h = 1; h <= 30; h++)
+            {
+                a.AdvanceTo(World.StartTime + h * SimTime.Hour);
+                a.FindOpportunities(8);
+            }
+            b.AdvanceTo(World.StartTime + 30 * SimTime.Hour);
+            Assert.AreEqual(b.StateHash(), a.StateHash());
+        }
+    }
+}

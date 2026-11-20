@@ -46,6 +46,7 @@ namespace GOA.Sim
         void DailyTick()
         {
             Schedule(Time + SimTime.Day, TaskKind.DailyTick);
+            ScheduleAmbientDay(Time, false);
             long day = SimTime.DayIndex(Time);
             RollWeather(day);
             if (WindStrength >= 0.75f)
@@ -158,7 +159,7 @@ namespace GOA.Sim
                     {
                         var causes = new List<int>();
                         if (ScarcityEventId >= 0 && profit > 6) causes.Add(ScarcityEventId);
-                        var e = Record(SimEventType.MerchantFortune, $"{c.firstName} grows rich",
+                        var e = Record(SimEventType.MerchantFortune, $"{c.Name} grows rich",
                             causes.Count > 0 ? $"{c.Name} sells bread dear while the village goes short. Purse: {c.wealth} coins." : $"{c.Name}'s shop thrives. Purse: {c.wealth} coins.",
                             2, causes.ToArray(), C(c.id));
                         c.renown.Add(e.id);
@@ -260,7 +261,7 @@ namespace GOA.Sim
             c.occupation = occ;
             c.occupationCause = cause;
             AssignWorkNode(c);
-            int id = RecordIfChained(SimEventType.ComingOfAge, $"{c.firstName} becomes a {OccupationName(occ)}",
+            int id = RecordIfChained(SimEventType.ComingOfAge, $"{c.Name} becomes a {OccupationName(occ)}",
                 $"At fourteen, {c.Name} takes up the trade of a {OccupationName(occ).ToLowerInvariant()}.", 2, C(cause), C(c.id));
             if (id >= 0) Remember(c, $"Became a {OccupationName(occ)}", id);
         }
@@ -304,7 +305,7 @@ namespace GOA.Sim
                     AdjustAffinity(a, b, 3f);
                     if (r.affinity >= 85)
                     {
-                        var e = Record(SimEventType.Marriage, $"{a.firstName} marries {b.firstName}",
+                        var e = Record(SimEventType.Marriage, $"{a.Name} marries {b.Name}",
                             $"The chapel bell rings for {a.Name} and {b.Name}.", 2, C(r.causeEventId), C(a.id, b.id), Nav.Node(Nav["Chapel"]).pos);
                         Marry(a, b, e.id);
                         Remember(a, $"Married {b.Name}", e.id);
@@ -412,7 +413,7 @@ namespace GOA.Sim
                 Citizens.Add(child);
                 Parent(child, m, f);
                 child.birthCause = cause;
-                var e = Record(SimEventType.Birth, $"{first} {f.familyName} is born", $"A child for {m.firstName} and {f.firstName}.", 2, C(cause), C(child.id, m.id, f.id),
+                var e = Record(SimEventType.Birth, $"{first} {f.familyName} is born", $"A child for {m.Name} and {f.Name}.", 2, C(cause), C(child.id, m.id, f.id),
                     m.activity != null ? PositionNow(m) : (Vec2?)null);
                 if (e.roots.Length > 0) e.turningPoint = true; // a life that exists because of you
                 child.birthCause = e.id;
@@ -541,7 +542,7 @@ namespace GOA.Sim
             if (best == null) return;
             if (best.id == ElderId)
             {
-                RecordIfChained(SimEventType.Election, $"{best.firstName} keeps the Elder's chair", "The moot changes nothing.", 1, C(triggerCause), C(best.id));
+                RecordIfChained(SimEventType.Election, $"{best.Name} keeps the Elder's chair", "The moot changes nothing.", 1, C(triggerCause), C(best.id));
                 return;
             }
             var causes = new List<int>();

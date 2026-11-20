@@ -43,7 +43,7 @@ namespace GOA.Sim
 
     public enum PropType { Pebble, Lantern, Cart, GroundItem, CrowNest }
 
-    public enum ItemType { None, Gear, Lens, Book, Coin, Key, Feather }
+    public enum ItemType { None, Gear, Lens, Book, Coin, Key, Feather, Basket }
 
     public enum Weather { Clear, Cloudy, Rain, Storm, Snow }
 
@@ -62,8 +62,10 @@ namespace GOA.Sim
         Heroism, CartRoll, WellBroken, Injury, Rescue, Donation, Gamble, Brawl, Rivalry, Startled,
         // macro
         FoodLoss, Scarcity, Prosperity, MerchantFortune, Election, PolicyChange, Invention, Construction,
-        EraChange, Emigration, Famine, Storm, LightningStrike, Festival, Discovery, PopulationMilestone,
-        ChallengeComplete, Glimpse
+        EraChange, Emigration, Famine, Storm, LightningStrike, Discovery, PopulationMilestone,
+        ChallengeComplete, Glimpse,
+        // ambient life
+        Friendship, Mishap
     }
 
     [Serializable]
@@ -189,6 +191,7 @@ namespace GOA.Sim
         public List<ItemType> hoard;     // crow nest contents
         public string label = "";
         public long placedTime;
+        public int ownerId = -1;         // ground item: who dropped it (they may want it back)
     }
 
     public class Fire
