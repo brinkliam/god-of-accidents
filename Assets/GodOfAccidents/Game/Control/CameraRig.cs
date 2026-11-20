@@ -104,7 +104,7 @@ namespace GOA.Game
             if (pos.y < ground) pos.y = ground;
             // never end up inside a roof: lift over buildings, easing so close-ups glide over the eaves
             float floor = CameraFloor(pos);
-            if (pos.y < floor) pos.y = Mathf.Lerp(pos.y, floor, 0.85f);
+            if (pos.y < floor) pos.y = floor;
             var look = Quaternion.LookRotation(_targetS - pos);
             if (_shake > 0)
             {

@@ -86,6 +86,58 @@ That is a low-end 2019 laptop chip. A shorter 20 s run gave 179 fps average, so 
 
 To update the site, run `BuildWeb`, copy `Builds/Web` into `web/`, then commit and push.
 
+## 2026-11-21 - Round 2: readability, layout, the challenge opening, visual moments
+
+Feedback after the first polish pass: about 7/10 visuals, 6/10 gameplay. Goal: 8+ on both. Branch `polish/round-2`.
+
+**1. Readability and aiming.**
+- Villagers are chunkier, with a strong rim light for clear silhouettes. They grow with distance from the camera (up to 2.3× when far away), so they stay readable from the god's-eye view.
+- Distract and Drop snap to the nearest valid villager within a generous radius (Drop can also land on open ground). A ring and a name label ("Distract Corvin Hale", "Drop beside Wren") show the target before you confirm. On touch it shows while your finger is down, and releasing confirms; a drag is a camera move, never a choice.
+- Drag powers: the tap threshold now scales with screen density. A pan with Nudge armed no longer shows a misleading hint.
+
+**2. Small screens.**
+- On compact screens, Goals and Chronicle share one drawer with tabs (tap the open tab to tuck it away). It never stacks over the energy panel, and it hides while the top-bar chips are unfolded.
+- HUD pills never wrap or clip at 1280 wide: shorter labels ("Food 11d", "Wealth 50%", "Rain soon", "Clearing") with full detail in tooltips.
+- The HUD now hides behind every dimmed dialog, not just the Web of History.
+- The Web of History button opened normally at both 634 and 1280 wide in this build; I couldn't reproduce the report.
+
+**3. Forgotten Genius opening.**
+- After the briefing the camera flies to Wren and opens her card.
+- A new first goal, "Catch Wren's eye with something new", is reachable early.
+- The headline counts down to Ambrose's afternoon walk.
+- When Ambrose is within glimmer reach of Wren, time pauses, the camera follows him, a strong violet marker shows on him and a toast says what to do. This repeats each afternoon until you act.
+- Curious villagers now notice a glimmer from 14 paces instead of 10 (the briefing already said curious people notice more). Without that, the moment often didn't happen on day one.
+- Test: following the game's own hint within two days starts Wren's apprenticeship and ticks the first goal.
+
+**4. Balance and naming.**
+- Hearth sparks can't light a fire in the first three days, and only rarely after (4% plus up to 8% on windy days, was 25-60%). Tested: no natural fires in the first three days across four seeds.
+- No two living villagers share a first name, at generation or at birth (deterministic, no extra random draws). Tested across three seeds and 12 years.
+
+**5. Visual moments.**
+- Midday: firmer sun, softer fill light, and a grade that adds saturation and contrast and lowers exposure when the sun is high.
+- The dramatic moment: when your chain reaches something big (magnitude 3+, or a hero, rescue, fire, spark, apprenticeship or courtship two links deep), the camera swoops low, time slows, cinematic bars slide in and the vignette deepens. It's limited to once every 12 seconds.
+- Bigger effects:
+  - fires: brighter, wider light and an ember gout when they catch;
+  - crashes and collapses: flying debris;
+  - a broken well: a burst of water.
+- Codex discovered: a gilded card with a shimmer sweep, the discovery count and a golden burst in the world. Turning points and codex reveals queue up and show one at a time.
+- The camera's roof clearance is wider and firmer (the first swoop ended beside a wall).
+
+**Verified.**
+- EditMode tests: 56/56 (9 new this round).
+- Web build in the browser pane at 60 fps, 634×593 and 1280×720 (the pane was in focus this time):
+  - the guided opening, snapping, compact drawer and pills;
+  - the Web of History button; the HUD hidden behind dialogs.
+- New `-goaShowcase` mode in the Windows player plays the round's moments by itself and saves screenshots (kept locally in `Screenshots/round2/`, which git ignores). Seen there:
+  - the guided moment on day one at 15:10, leading to apprenticeship, spark, dramatic swoop and codex reveals;
+  - the lantern fire put out by a villager (hero codex);
+  - the new midday look.
+- Dev commands for browser playtests: `unityInstance.SendMessage("GOA", "Dev", "...")`, only when the page URL has `dev=1`.
+
+**Not verified.**
+- Phones in the hand: portrait was checked only by emulation in the last round.
+- The final Web build after the last fixes: in this session the browser pane was not on screen, so it couldn't run game frames. The same code was checked in the Windows player.
+
 ## 2026-11-20 - Polish pass: the first ten minutes
 
 Goal from playtest feedback (rated 4/10): make the first ten minutes exciting and beautiful. Work is on branch `polish/first-ten-minutes`.

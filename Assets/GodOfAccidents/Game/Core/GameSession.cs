@@ -54,6 +54,11 @@ namespace GOA.Game
         /// <summary>The guided moment of a challenge: the villager the player should act on.</summary>
         public event Action<int> OnGuide;
         float _lastDrama = -100;
+        static readonly HashSet<SimEventType> DramaticTypes = new HashSet<SimEventType>
+        {
+            SimEventType.Heroism, SimEventType.Rescue, SimEventType.FireStarted, SimEventType.FireSpread, SimEventType.BuildingDestroyed,
+            SimEventType.WellBroken, SimEventType.CartRoll, SimEventType.Apprenticeship, SimEventType.Spark, SimEventType.Courtship, SimEventType.Marriage,
+        };
         float _slowMo;
         long _guideDay = -1;
 
@@ -321,13 +326,14 @@ namespace GOA.Game
             {
                 if (e.magnitude >= 2 && SpeedIndex <= 2) _slowMo = 1.3f;
                 Rig.Shake(0.25f + 0.2f * e.magnitude, 0.3f);
-                if (e.magnitude >= 3 && e.hasPos && GameSettings.Cinematics && Time.unscaledTime - _lastDrama > 12f)
+                bool dramatic = e.magnitude >= 3 || (e.magnitude >= 2 && e.depth >= 2 && DramaticTypes.Contains(e.type));
+                if (dramatic && e.hasPos && GameSettings.Cinematics && Time.unscaledTime - _lastDrama > 12f)
                 {
                     // the dramatic moment: a low swoop onto the consequence, in slow motion
                     _lastDrama = _lastCinematic = Time.unscaledTime;
                     if (SpeedIndex > 2) SpeedIndex = 2;
                     _slowMo = 2.6f;
-                    Rig.FocusOn(TerrainBuilder.Ground(e.pos), 22, GameSettings.ReduceMotion ? 0.01f : 1.3f, Rig.Yaw + 35f, 22f);
+                    Rig.FocusOn(TerrainBuilder.Ground(e.pos), 26, GameSettings.ReduceMotion ? 0.01f : 1.3f, Rig.Yaw + 35f, 30f);
                     OnDrama?.Invoke(e);
                 }
                 OnChainLink?.Invoke(e);

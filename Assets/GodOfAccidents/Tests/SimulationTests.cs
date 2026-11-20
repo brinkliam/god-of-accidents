@@ -475,5 +475,25 @@ namespace GOA.Tests
             Assert.AreEqual("Catch Wren's eye with something new", s.steps[0].text);
             StringAssert.Contains("Ambrose", s.headline);
         }
+
+        [Test]
+        public void TheGuidedMomentWorksWhenFollowed()
+        {
+            // follow the game's own hint: wait for the strongest marker, then Distract that villager
+            var t = new Timeline(ScenarioDef.ForgottenGenius.fixedSeed, ScenarioDef.ForgottenGenius);
+            Opportunity? hint = null;
+            for (long time = World.StartTime; time < World.StartTime + 2 * SimTime.Day && hint == null; time += 5 * SimTime.Minute)
+            {
+                t.World.AdvanceTo(time);
+                foreach (var o in t.World.FindOpportunities(4)) if (o.heat >= 1.1f) { hint = o; break; }
+            }
+            Assert.IsTrue(hint.HasValue, "the guided moment should come within the first two days (the headline promises an afternoon walk)");
+            var r = t.Act(PlayerInput.DistractCitizen(hint.Value.targetId));
+            Assert.IsTrue(r.ok, r.message);
+            t.World.AdvanceTo(t.World.Time + 6 * SimTime.Hour);
+            var wren = t.World.FindCitizen("Wren Ashdown");
+            Assert.IsTrue(wren.relations.Values.Any(x => x.kind == RelationKind.Mentor), "following the hint should start Wren's apprenticeship");
+            Assert.IsTrue(Challenges.Evaluate(t.World).steps[0].done, "and tick the first goal");
+        }
     }
 }

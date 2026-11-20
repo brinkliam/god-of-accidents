@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using GOA.Sim;
 using UnityEngine;
@@ -157,7 +158,7 @@ namespace GOA.Game
             _shimmerStart = Time.unscaledTime + 0.35f;
             S.View?.Celebrate(Rig.Target);
             Audio?.Ui("codex"); Audio?.TurningPoint(true);
-            FadeOutAndRemove(wrap, 5200, 900);
+            FadeOutAndRemove(wrap, 3000, 500);
         }
 
         void TickShimmer()
@@ -166,6 +167,28 @@ namespace GOA.Game
             float u = Mathf.Clamp01((Time.unscaledTime - _shimmerStart) / 1.1f);
             _shimmer.style.left = new Length(-30 + u * 140, LengthUnit.Percent);
             _shimmer.style.opacity = u <= 0 || u >= 1 ? 0 : Mathf.Sin(u * Mathf.PI) * 0.85f;
+        }
+
+        // ------------------------------------------------------------------ one big card at a time
+
+        readonly Queue<(Action show, float seconds)> _big = new Queue<(Action, float)>();
+        float _bigBusyUntil;
+
+        /// <summary>Turning points and codex reveals take turns in the middle of the screen instead of piling up.</summary>
+        void QueueBig(Action show, float seconds)
+        {
+            if (_big.Count > 4) return; // a flood of discoveries: keep the first few
+            _big.Enqueue((show, seconds));
+        }
+
+        void TickBig()
+        {
+            if (_big.Count == 0 || Time.unscaledTime < _bigBusyUntil) return;
+            var (show, seconds) = _big.Dequeue();
+            _bannerLayer.Q(className: "codex-reveal")?.RemoveFromHierarchy();
+            _bannerEl?.RemoveFromHierarchy();
+            show();
+            _bigBusyUntil = Time.unscaledTime + seconds;
         }
     }
 }

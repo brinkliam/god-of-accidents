@@ -32,6 +32,7 @@ namespace GOA.Game
             Application.targetFrameRate = Application.isMobilePlatform ? 60 : -1;
             QualitySettings.vSyncCount = Application.isMobilePlatform ? 0 : 1;
             Benchmark.MaybeStart(gameObject);
+            Showcase.MaybeStart(gameObject);
         }
 
         void Start()

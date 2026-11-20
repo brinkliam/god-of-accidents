@@ -308,8 +308,10 @@ namespace GOA.Sim
                 var wren = FindCitizen("Wren Ashdown");
                 if (wren != null && IsAwakeOutside(wren))
                     foreach (var c in Citizens)
+                        // only when Wren is within reach of the glimmer (curious onlookers come from 14 paces) and not walking past
                         if (c.occupation == Occupation.Tinkerer && IsAwakeOutside(c) && c.activity.kind != ActivityKind.Distracted
-                            && Vec2.Distance(PositionNow(c), PositionNow(wren)) < 30f)
+                            && wren.activity.kind != ActivityKind.Travel && wren.activity.kind != ActivityKind.Distracted
+                            && Vec2.Distance(PositionNow(c), PositionNow(wren)) < 13f)
                             list.Add(new Opportunity { pos = PositionNow(c), power = PowerType.Distract, targetId = c.id, hint = $"Distract {c.firstName} now - Wren is playing nearby", heat = 1.2f });
             }
             list.Sort((x, y) => y.heat.CompareTo(x.heat));

@@ -197,7 +197,7 @@ namespace GOA.Sim
             foreach (var o in Citizens)
             {
                 if (o.id == c.id || !IsAwakeOutside(o) || o.activity.kind == ActivityKind.Travel || o.activity.kind == ActivityKind.FightFire) continue;
-                if (Vec2.Distance(PositionNow(o), pos) > 10f) continue;
+                if (Vec2.Distance(PositionNow(o), pos) > (o.Has(Trait.Curious) ? 14f : 10f)) continue; // curious eyes notice from farther
                 double join = o.Has(Trait.Curious) ? 1.0 : 0.5;
                 if (!Rand.Chance(join, Seed, o.id, Time, c.id, (int)Salt.Meet)) continue;
                 Interrupt(o, ActivityKind.Distracted, 20 * SimTime.Minute, e.id);

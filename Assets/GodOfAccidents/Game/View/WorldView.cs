@@ -53,7 +53,8 @@ namespace GOA.Game
         {
             BuildingType.Chapel => 15f, BuildingType.ClockTower => 21f, BuildingType.Windmill => 17f, BuildingType.Mill => 11f,
             BuildingType.ElderHall => 10f, BuildingType.Library => 10f, BuildingType.Well => 3.5f, BuildingType.Haystack => 4.5f,
-            BuildingType.Wall => 4f, BuildingType.House => 6.5f + b.tier * 1.6f, _ => 8f,
+            BuildingType.Wall => 4f, BuildingType.House => 7f + b.tier * 1.8f, BuildingType.Tavern => 12f, BuildingType.Barn => 10f,
+            BuildingType.Granary => 10f, BuildingType.Workshop => 9f, BuildingType.Market => 7f, _ => 9f,
         };
 
         /// <summary>Lowest camera height over this point: clear of every roof, with a little headroom.</summary>
@@ -69,10 +70,11 @@ namespace GOA.Game
                 float cs = Mathf.Cos(-b.rotation), sn = Mathf.Sin(-b.rotation);
                 float lx = Mathf.Abs(local.x * cs - local.z * sn) - b.size.x * 0.5f, lz = Mathf.Abs(local.x * sn + local.z * cs) - b.size.z * 0.5f;
                 float outside = Mathf.Max(lx, lz);
-                if (outside > 3f) continue;
+                if (outside > 6f) continue;
                 // full clearance over the roof, tapering to nothing three metres beyond the walls
-                float h = TerrainBuilder.Height(b.pos.x, b.pos.z) + RoofHeight(b) * (b.Complete ? 1 : Mathf.Max(0.3f, b.buildProgress)) + 1.6f;
-                floor = Mathf.Max(floor, Mathf.Lerp(h, h - 6f, Mathf.Clamp01(outside / 3f)));
+                float h = TerrainBuilder.Height(b.pos.x, b.pos.z) + RoofHeight(b) * (b.Complete ? 1 : Mathf.Max(0.3f, b.buildProgress)) + 2.5f;
+                // full clearance within a metre of the walls (meshes overhang their footprints), tapering out to six metres
+                floor = Mathf.Max(floor, Mathf.Lerp(h, h - 8f, Mathf.Clamp01((outside - 1f) / 5f)));
             }
             return floor;
         }

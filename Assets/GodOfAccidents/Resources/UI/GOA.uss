@@ -233,7 +233,7 @@ Label { color: rgb(248, 242, 228); font-size: 15px; white-space: normal; }
 
 /* codex discovered: the reveal */
 .codex-reveal { position: absolute; left: 0; right: 0; top: 16%; align-items: center; }
-.codex-halo { position: absolute; width: 640px; height: 300px; top: -40px; border-radius: 320px; background-color: rgba(255, 196, 90, 0.16); }
+.codex-halo { position: absolute; width: 600px; height: 240px; top: -14px; border-radius: 300px; background-color: rgba(255, 196, 90, 0.07); }
 .codex-card {
     width: 560px; max-width: 92%; padding: 18px 26px; align-items: center; overflow: hidden;
     background-color: rgba(36, 26, 12, 0.94); border-width: 2px; border-radius: 18px; border-color: rgb(255, 214, 140);

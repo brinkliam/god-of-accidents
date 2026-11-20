@@ -70,12 +70,12 @@ namespace GOA.Game
             S.OnToast += Toast;
             S.RunHeavy = Veil;
             S.OnEvent += OnSimEvent;
-            S.OnTurningPoint += Banner;
-            S.OnCodex += CodexReveal;
+            S.OnTurningPoint += e => QueueBig(() => Banner(e), 3.6f);
+            S.OnCodex += e => QueueBig(() => CodexReveal(e), 3.4f);
             S.OnChallengeResolved += ShowResults;
             S.OnGlimpse += ShowGlimpse;
             S.OnWorldChanged += WorldChanged;
-            S.OnActed += (r, i) => { if (r.ok) { Audio?.Power(i.power); PC.Select(null); RefreshPowers(); } else Audio?.Ui("error"); };
+            S.OnActed += (r, i) => { if (r.ok) { Audio?.Power(i.power); PC.Select(null); RefreshPowers(); _toasts.Clear(); } else Audio?.Ui("error"); };
             PC.OnSelect += Inspect;
             PC.OnHint += Toast;
             svc.MockAds.Presenter = PresentMockAd;
@@ -188,6 +188,7 @@ namespace GOA.Game
             TickFades();
             TickChainCard();
             TickShimmer();
+            TickBig();
             UpdateLayoutMode();
             TickVeil();
             TickSnapLabel();
@@ -268,7 +269,7 @@ namespace GOA.Game
             _bannerLayer.Add(b);
             _bannerEl = b;
             PopIn(b, 0.45f);
-            FadeOutAndRemove(b, 5200, 900, () => { if (_bannerEl == b) _bannerEl = null; });
+            FadeOutAndRemove(b, 3200, 500, () => { if (_bannerEl == b) _bannerEl = null; });
         }
 
         readonly List<(VisualElement e, float hideAt, float fade, Action done)> _fades = new List<(VisualElement, float, float, Action)>();
