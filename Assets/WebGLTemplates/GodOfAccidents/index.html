@@ -21,7 +21,8 @@
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2c46d' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'/%3E%3C/svg%3E"); }
     #fs:hover { background-color: rgba(60,45,20,.8); }
     /* on phones the power orbs span the bottom edge: keep the button clear of them, under the top bar */
-    @media (max-width: 700px), (orientation: portrait) { #fs { bottom: auto; top: 76px; right: 8px; } }
+    @media (max-width: 760px) and (orientation: landscape) { #fs { right: auto; left: 10px; bottom: 10px; } }
+    @media (orientation: portrait) { #fs { bottom: auto; top: 44%; right: 6px; } }
     #warning { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); max-width: 90vw; z-index: 6; font: 14px sans-serif; }
   </style>
 </head>

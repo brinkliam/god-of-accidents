@@ -347,7 +347,7 @@ namespace GOA.Game
                         if (p != null && (p.type == PropType.Lantern || p.type == PropType.Cart))
                         { Session.Act(PlayerInput.Nudge(p.id, p.pos), TerrainBuilder.Ground(p.pos)); return; }
                     }
-                    OnHint?.Invoke("Nudge works on small things: pebbles, trinkets, the lantern, the cart's chock.");
+                    if (tap) OnHint?.Invoke("Nudge works on small things: pebbles, trinkets, the lantern, the cart's chock."); // a drag was a camera pan
                     return;
                 }
                 case PowerType.Gust:

@@ -51,9 +51,11 @@ namespace GOA.Game
         public event Action<SimEvent> OnChainLink;
         /// <summary>A big consequence of the player's chain: the camera swoops in (letterbox, slow motion).</summary>
         public event Action<SimEvent> OnDrama;
+        /// <summary>The guided moment of a challenge: the villager the player should act on.</summary>
+        public event Action<int> OnGuide;
         float _lastDrama = -100;
         float _slowMo;
-        bool _guideFired;
+        long _guideDay = -1;
 
         World _menuWorld;
         World _replayWorld;
@@ -93,7 +95,7 @@ namespace GOA.Game
             Timelines.Add(new Timeline(s, scenario) { Name = "Prime Timeline" });
             ActiveIndex = 0;
             _replayWorld = null;
-            _guideFired = false;
+            _guideDay = -1;
             Mode = SessionMode.Playing;
             Challenge = Challenges.Evaluate(Timeline.World);
             DisplayTime = Timeline.World.Time;
@@ -205,15 +207,21 @@ namespace GOA.Game
         /// </summary>
         void GuideMoment()
         {
-            if (_guideFired || Timeline == null || Timeline.Scenario.id != "forgotten_genius") return;
+            // once per afternoon until the player has acted, so speeding past it is never fatal
+            if (Timeline == null || Timeline.Scenario.id != "forgotten_genius" || Timeline.World.InterventionCount > 0) return;
+            long day = SimTime.DayIndex(Timeline.World.Time);
+            if (day == _guideDay) return;
             foreach (var o in View.Opportunities)
             {
                 if (o.heat < 1.1f) continue;
-                _guideFired = true;
-                if (SpeedIndex > 1) SpeedIndex = 1;
-                _slowMo = 2f;
+                _guideDay = day;
+                // pause on the moment and keep him in frame, so the player can act calmly
+                SpeedIndex = 0;
+                int target = o.targetId;
                 Rig.FocusOn(TerrainBuilder.Ground(o.pos), 30, GameSettings.ReduceMotion ? 0.01f : 1.4f);
-                Toast("Now! " + o.hint + ". Choose Distract and tap him.");
+                Rig.Follow = () => View.PositionOf(PickKind.Citizen, target, DisplayTime);
+                OnGuide?.Invoke(target);
+                Toast("Now! " + o.hint + ". Time is paused: choose Distract and tap him.");
                 break;
             }
         }

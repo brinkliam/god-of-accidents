@@ -197,6 +197,9 @@ namespace GOA.Game
             if (b.View != null) b.View.SetQuality(GameSettings.QualityScale);
         }
 
+        /// <summary>Entry point for page-side test commands (see DevTools.Run).</summary>
+        public void Dev(string cmd) => DevTools.Run(cmd);
+
         void OnApplicationQuit() => Services?.Shutdown();
     }
 }
