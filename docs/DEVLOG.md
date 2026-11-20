@@ -86,14 +86,72 @@ That is a low-end 2019 laptop chip. A shorter 20 s run gave 179 fps average, so 
 
 To update the site, run `BuildWeb`, copy `Builds/Web` into `web/`, then commit and push.
 
+## 2026-11-20 - Polish pass: the first ten minutes
+
+Goal from playtest feedback (rated 4/10): make the first ten minutes exciting and beautiful. Work is on branch `polish/first-ten-minutes`.
+
+**1. Pacing.**
+- Ambient mishaps, about seven a day: dropped apples, runaway animals, tipped barrows, arguments, hearth sparks and lucky finds. Each one is an ordinary cause in the ledger, so it can chain into meetings, friendships, rivalries, sparks or fires, and none of them is ever credited to the player. In challenges they stay among adults and drop no gears or books, so the puzzle still needs the player (the Forgotten Genius test caught the first version solving itself).
+- Every world opens with a guaranteed small chain. Seen live: "Agnes Thornbury drops a basket of apples" at 07:01, then "Silas Quill and Agnes Thornbury meet", less than a minute of real time after Begin.
+- Friendships and rivalries are now Chronicle milestones. Titles use full names.
+- Energy: worlds start full and regeneration is tripled. Rewarded ads can't overfill energy, and the button reads "Energy full".
+- Opportunity markers flash where a nudge would cause something now: gold for Nudge, violet for Distract. `World.FindOpportunities` is a pure query (tested).
+
+**2. Powers.**
+- A single tap now does a Nudge: it rolls the pebble or trinket onto the path of whoever is coming (`SuggestNudgeTarget`; tested to be legal and side-effect free).
+- Armed state: a cursor per power, the chosen orb glows and the others dim, valid targets get rings and invalid ones grey rings.
+- Hit radii are larger and grow with screen size.
+- Feedback: an impact effect per power, camera shake, slow motion while your chain reaction unfolds, a "cause and effect" card when a chain settles, and a bigger codex unlock moment.
+
+**3. Mobile and UI.**
+- New WebGL template: the canvas fills the window and follows resize, rotation and fullscreen changes. The fullscreen button calls the browser API directly on the first click. The template also adds a themed loader and saves that persist across visits.
+- Compact top bar on narrow screens (tap the clock to unfold the other chips) and a portrait layout scaled for phones. Targets are at least 44px, and text is larger with higher contrast.
+- Fixed: HUD showing through the Web of History; the Codex title collapsing in long dialogs; energy above the cap after an ad; the weather label (it now follows the visible sky); duplicate first names. The Codex shows a hint for every undiscovered entry. Locked power slots are hidden until those powers exist.
+
+**4. Visuals.**
+- More chimney smoke, sparrows flitting over the green, villagers carrying sacks, baskets and logs, footstep dust, stronger crop sway, and water splashes when fires are put out.
+- Colour grading follows the season and the hour: warm golden hours, blue nights, rich autumn, crisp winter. Banners and cards pop in.
+- The Web build defaults to Medium quality. SMAA is used only on Medium (none on Low, MSAA on High).
+
+**6. Fixes from review.**
+- Presses on UI never reach the world.
+- The camera lifts over roofs and holds still while paused.
+- Sandbox worlds get optional goals ("First steps") with a toast for each one reached.
+- Fast-forward runs on a per-frame time budget. Load, branch, replay and Glimpse show a "folding time" overlay while history is re-simulated.
+- The WebGL heap starts at 256 MB and grows to 2 GB (was 96 MB).
+- Removed SampleScene, the unused Festival event, the no-op ChallengeCheck task and the unused bonus PlayerPref.
+
+**Verified.**
+- EditMode tests: 47/47 (11 new).
+- Web build played in the browser pane:
+  - opening chain; full names in the Chronicle;
+  - tap Nudge (twice); Distract leading to a meeting; the chain card and codex fanfare together;
+  - goals ticking with toasts; armed rings; opportunity markers;
+  - Codex hints and title; the Web of History without the HUD;
+  - compact layout and portrait at 375×812; no console errors.
+- Found and fixed during the playtest:
+  - no opportunity markers in the opening minutes (rules widened, now tested);
+  - Chronicle rows overlapping in compact mode;
+  - the chain card overlapping the codex banner;
+  - toasts covering the top bar;
+  - unreadably small UI in portrait;
+  - the fullscreen button covering an orb on phones;
+  - mishaps in the wrong timeline lane.
+
+**Not verified.**
+- Real fullscreen: the button's request fires on the first click, but the desktop app's browser pane never grants fullscreen.
+- Web frame rate: during this session the pane was throttled to about 1 fps even for an empty page (window not focused). The old live build measured the same, so it's the environment, not the build.
+- The camera-over-roofs and paused-camera fixes are in code but haven't been seen in a screenshot.
+- Midday still looks pale; the Milestone 1 noon capture is the same, so this isn't a regression, but it's worth a look later.
+
 **Known limitations / next.**
 
 - The turning-point banner fix (frame-driven fade) has not yet been confirmed in a screenshot. The Editor session closed before the capture.
 - Browser (WebGL) frame rate is still unmeasured: it needs the page in the foreground. The Web build renders and plays.
-- The camera rig has no collision with buildings. A low close-up can sit inside a roof.
 - The "Mobile" quality level (used on WebGL) gets fewer post effects; depth of field is off there by design.
 - Not built yet (later milestones):
-  - advanced powers (Delay, Redirect and others), shown as locked
+  - advanced powers (Delay, Redirect and others), hidden until they exist
+  - a world map with 2-3 locations reusing the same powers, each with a signature accident (step 5 of the polish brief, deferred by request)
   - multiple settlements, trade and war
   - eras beyond the procedural house tiers
   - daily and weekly seeded challenges

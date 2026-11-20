@@ -1,150 +1,112 @@
 <!DOCTYPE html>
-<html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | God of Accidents</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
-  </head>
-  <body>
-    <div id="unity-container" class="unity-desktop">
-      <div id="unity-fullscreen-container">
-        <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
-        <div id="unity-loading-container">
-          <div id="unity-loading-bar">
-            <div id="unity-logo"></div>
-            <div id="unity-progress-bar-empty">
-              <div id="unity-progress-bar-full"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div id="unity-warning"> </div>
-      <div id="unity-footer">
-        <div id="unity-logo-title-footer"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">God of Accidents</div>
-      </div>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d18">
+  <title>God of Accidents</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0d18; touch-action: none; overscroll-behavior: none; }
+    #stage { position: fixed; inset: 0; }
+    /* the canvas always fills the window; Unity matches its render size to this box (x devicePixelRatio) */
+    #unity-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: #0b0d18; outline: none; }
+    #loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: radial-gradient(ellipse at 50% 40%, #2a2338 0%, #0b0d18 70%); color: #f6e7c4; font-family: Georgia, "Times New Roman", serif; transition: opacity .6s; }
+    #loading h1 { font-weight: normal; letter-spacing: .35em; font-size: clamp(22px, 5vw, 46px); margin: 0 0 .3em; text-shadow: 0 0 24px rgba(255,180,80,.55); text-align: center; }
+    #loading p { margin: 0 0 1.6em; opacity: .75; letter-spacing: .12em; font-size: clamp(12px, 2.4vw, 16px); text-align: center; padding: 0 16px; }
+    #bar { width: min(360px, 70vw); height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+    #fill { width: 0; height: 100%; background: linear-gradient(90deg, #c98d3a, #ffd98f); box-shadow: 0 0 12px #ffcb6b; transition: width .2s; }
+    #fs { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(242,196,109,.5);
+      background: rgba(14,16,28,.6) center/22px no-repeat; cursor: pointer; display: none; z-index: 5;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f2c46d' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'/%3E%3C/svg%3E"); }
+    #fs:hover { background-color: rgba(60,45,20,.8); }
+    /* on phones the power orbs span the bottom edge: keep the button clear of them, under the top bar */
+    @media (max-width: 700px), (orientation: portrait) { #fs { bottom: auto; top: 76px; right: 8px; } }
+    #warning { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); max-width: 90vw; z-index: 6; font: 14px sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="loading">
+      <h1>GOD OF ACCIDENTS</h1>
+      <p>The smallest accident can change the fate of a civilisation.</p>
+      <div id="bar"><div id="fill"></div></div>
     </div>
-    <script>
-      let canvas = document.querySelector("#unity-canvas");
-      let fullscreenContainer = document.querySelector("#unity-fullscreen-container");
+    <button id="fs" title="Fullscreen" aria-label="Fullscreen"></button>
+    <div id="warning"></div>
+  </div>
+  <script>
+    const stage = document.getElementById("stage");
+    const canvas = document.getElementById("unity-canvas");
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-      // Shows a temporary message banner/ribbon for a few seconds, or
-      // a permanent error message on top of the canvas if type=='error'.
-      // If type=='warning', a yellow highlight color is used.
-      // Modify or remove this function to customize the visually presented
-      // way that non-critical warnings and error messages are presented to the
-      // user.
-      function unityShowBanner(msg, type) {
-        var warningBanner = document.querySelector("#unity-warning");
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-        }
-        var div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(function() {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
-        }
-        updateBannerVisibility();
-      }
+    function showBanner(msg, type) {
+      const w = document.getElementById("warning");
+      const d = document.createElement("div");
+      d.textContent = msg;
+      d.style.cssText = "padding:8px 12px;margin:4px;border-radius:8px;background:" + (type === "error" ? "#b3261e" : "#5a4a1a") + ";color:#fff";
+      w.appendChild(d);
+      if (type !== "error") setTimeout(() => d.remove(), 5000);
+    }
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Web.loader.js";
-      var config = {
-        arguments: [],
-        dataUrl: buildUrl + "/Web.data.unityweb",
-        frameworkUrl: buildUrl + "/Web.framework.js.unityweb",
-        codeUrl: buildUrl + "/Web.wasm.unityweb",
-        streamingAssetsUrl: "StreamingAssets",
+    const config = {
+      arguments: [],
+      dataUrl: "Build/Web.data.unityweb",
+      frameworkUrl: "Build/Web.framework.js.unityweb",
+      codeUrl: "Build/Web.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "God of Accidents",
+      productName: "God of Accidents",
+      productVersion: "0.1.0",
+      showBanner: showBanner,
+      // saves and settings persist across visits without manual syncing
+      autoSyncPersistentDataPath: true,
+      // sharp but affordable: full density on desktop, capped on high-density phones
+      devicePixelRatio: Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2),
+    };
 
-        // If you have a custom web site structure, or want to place multiple Unity build instances on the same page,
-        // you can pass fullscreenElementID: "my-unity-fullscreen-container-id", in this configuration field to
-        // explicitly point to the element tree root that is displayed in fullscreen mode.
-        fullscreenElementID: "unity-fullscreen-container",
+    // The canvas follows the window. On some browsers the canvas keeps a stale size after leaving fullscreen
+    // (a grey screen); nudging its size on every resize and fullscreen change forces Unity to resync.
+    function fit() {
+      canvas.style.width = stage.clientWidth + "px";
+      canvas.style.height = stage.clientHeight + "px";
+      requestAnimationFrame(() => { canvas.style.width = "100%"; canvas.style.height = "100%"; });
+    }
+    window.addEventListener("resize", fit);
+    window.addEventListener("orientationchange", () => setTimeout(fit, 250));
+    document.addEventListener("fullscreenchange", () => setTimeout(fit, 50));
+    document.addEventListener("webkitfullscreenchange", () => setTimeout(fit, 50));
 
-        companyName: "God of Accidents",
-        productName: "God of Accidents",
-        productVersion: "0.1.0",
-        showBanner: unityShowBanner,
-        // errorHandler: function(err, url, line) {
-        //    alert("error " + err + " occurred at line " + line);
-        //    // Return 'true' if you handled this error and don't want Unity
-        //    // to process it further, 'false' otherwise.
-        //    return true;
-        // },
-      };
-
-      // By default, Unity keeps WebGL canvas render target size matched with
-      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
-      // Set this to false if you want to decouple this synchronization from
-      // happening inside the engine, and you would instead like to size up
-      // the canvas DOM size and WebGL render target sizes yourself.
-      // config.matchWebGLToCanvasSize = false;
-
-      // If you would like all file writes inside Unity Application.persistentDataPath
-      // directory to automatically persist so that the contents are remembered when
-      // the user revisits the site the next time, uncomment the following line:
-      // config.autoSyncPersistentDataPath = true;
-      // This autosyncing is currently not the default behavior to avoid regressing
-      // existing user projects that might rely on the earlier manual
-      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
-      // expected to change.
-
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
-
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.getElementsByTagName('head')[0].appendChild(meta);
-        document.querySelector("#unity-container").className = "unity-mobile";
-        canvas.className = "unity-mobile";
-
-        // To lower canvas resolution on mobile devices to gain some
-        // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
-
-
+    // Fullscreen on the first click: call the browser API directly inside the click handler.
+    const fsBtn = document.getElementById("fs");
+    const canFs = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+    fsBtn.onclick = (e) => {
+      e.preventDefault();
+      const el = stage;
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
       } else {
-        // Desktop style: Render the game canvas container in a window that can be maximized to fullscreen:
-        fullscreenContainer.style.width = "960px";
-        fullscreenContainer.style.height = "600px";
+        (el.requestFullscreen || el.webkitRequestFullscreen).call(el, { navigationUI: "hide" });
       }
+      canvas.focus();
+    };
 
-
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        const loadingContainer = document.querySelector("#unity-loading-container");
-        const progressBarFull = document.querySelector("#unity-progress-bar-full");
-
-        createUnityInstance(canvas, config, (progress) => {
-          if (progress < 1) {
-            loadingContainer.style.display = "block";
-            progressBarFull.style.width = 100 * progress + "%";
-          } else {
-            loadingContainer.style.display = "none";
-          }
-        }).then((unityInstance) => {
-                document.querySelector("#unity-fullscreen-button").onclick = () => {
-                  unityInstance.SetFullscreen(1);
-                };
-
-              }).catch((message) => {
-                alert(message);
-              });
-            };
-
-      document.body.appendChild(script);
-
-    </script>
-  </body>
+    const script = document.createElement("script");
+    script.src = "Build/Web.loader.js";
+    script.onload = () => {
+      createUnityInstance(canvas, config, (p) => { document.getElementById("fill").style.width = (100 * p) + "%"; })
+        .then((instance) => {
+          window.unityInstance = instance;
+          const l = document.getElementById("loading");
+          l.style.opacity = 0; setTimeout(() => l.remove(), 700);
+          if (canFs) fsBtn.style.display = "block";
+          fit();
+          canvas.focus();
+        })
+        .catch((m) => showBanner(String(m), "error"));
+    };
+    document.body.appendChild(script);
+  </script>
+</body>
 </html>
